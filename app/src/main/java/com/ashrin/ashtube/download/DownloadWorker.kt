@@ -103,7 +103,7 @@ class DownloadWorker(
                 errorMessage = "Real stream not available for download",
             )
             database.downloadDao().insertOrUpdate(failureUpdate)
-            return Result.failure()
+            return@withContext Result.failure()
         }
 
         try {
@@ -117,67 +117,66 @@ class DownloadWorker(
                 setRequestProperty("Origin", "https://vidlink.pro")
             }
 
-                val responseCode = conn.responseCode
-                if (responseCode in 200..299) {
-                    val contentLength = conn.contentLengthLong
-                    val totalBytes = if (contentLength > 0L) contentLength else 100_000_000L
-                    var bytesDownloaded = 0L
+            val responseCode = conn.responseCode
+            if (responseCode in 200..299) {
+                val contentLength = conn.contentLengthLong
+                val totalBytes = if (contentLength > 0L) contentLength else 100_000_000L
+                var bytesDownloaded = 0L
 
-                    conn.inputStream.use { input ->
-                        FileOutputStream(targetFile).use { output ->
-                            val buffer = ByteArray(64 * 1024)
-                            var bytesRead: Int
-                            var lastUpdateMs = System.currentTimeMillis()
+                conn.inputStream.use { input ->
+                    FileOutputStream(targetFile).use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var bytesRead: Int
+                        var lastUpdateMs = System.currentTimeMillis()
 
-                            while (input.read(buffer).also { bytesRead = it } != -1) {
-                                if (isStopped) {
-                                    database.downloadDao().updateState(downloadId, "PAUSED")
-                                    MockCatalogRepository.pauseDownload(downloadId)
-                                    return@withContext Result.success()
-                                }
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            if (isStopped) {
+                                database.downloadDao().updateState(downloadId, "PAUSED")
+                                MockCatalogRepository.pauseDownload(downloadId)
+                                return@withContext Result.success()
+                            }
 
-                                output.write(buffer, 0, bytesRead)
-                                bytesDownloaded += bytesRead
+                            output.write(buffer, 0, bytesRead)
+                            bytesDownloaded += bytesRead
 
-                                val now = System.currentTimeMillis()
-                                if (now - lastUpdateMs >= 600L || bytesDownloaded == totalBytes) {
-                                    lastUpdateMs = now
-                                    val progress = (bytesDownloaded.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
-                                    val progressPercent = (progress * 100).toInt()
+                            val now = System.currentTimeMillis()
+                            if (now - lastUpdateMs >= 600L || bytesDownloaded == totalBytes) {
+                                lastUpdateMs = now
+                                val progress = (bytesDownloaded.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+                                val progressPercent = (progress * 100).toInt()
 
-                                    database.downloadDao().updateProgressAndTotal(
-                                        id = downloadId,
-                                        progress = progress,
-                                        bytesDownloaded = bytesDownloaded,
-                                        totalBytes = totalBytes,
-                                        state = "DOWNLOADING",
-                                    )
-                                    MockCatalogRepository.updateDownloadProgress(
-                                        id = downloadId,
-                                        progress = progress,
-                                        bytesDownloaded = bytesDownloaded,
-                                    )
+                                database.downloadDao().updateProgressAndTotal(
+                                    id = downloadId,
+                                    progress = progress,
+                                    bytesDownloaded = bytesDownloaded,
+                                    totalBytes = totalBytes,
+                                    state = "DOWNLOADING",
+                                )
+                                MockCatalogRepository.updateDownloadProgress(
+                                    id = downloadId,
+                                    progress = progress,
+                                    bytesDownloaded = bytesDownloaded,
+                                )
 
-                                    try {
-                                        setForeground(createForegroundInfo(title, progressPercent, bytesDownloaded, totalBytes))
-                                    } catch (e: Exception) {}
-                                }
+                                try {
+                                    setForeground(createForegroundInfo(title, progressPercent, bytesDownloaded, totalBytes))
+                                } catch (e: Exception) {}
                             }
                         }
                     }
-
-                    // Complete real download
-                    database.downloadDao().markCompleted(downloadId, targetFile.absolutePath)
-                    MockCatalogRepository.markDownloadCompleted(downloadId)
-
-                    // Index into local media so it appears in Local Media immediately
-                    try {
-                        AshTubeRepository.getInstance(context).indexLocalFile(Uri.fromFile(targetFile))
-                    } catch (e: Exception) {}
-
-                    showCompletedNotification(title)
-                    return@withContext Result.success(workDataOf("completed" to true, "filePath" to targetFile.absolutePath))
                 }
+
+                // Complete real download
+                database.downloadDao().markCompleted(downloadId, targetFile.absolutePath)
+                MockCatalogRepository.markDownloadCompleted(downloadId)
+
+                // Index into local media so it appears in Local Media immediately
+                try {
+                    AshTubeRepository.getInstance(context).indexLocalFile(Uri.fromFile(targetFile))
+                } catch (e: Exception) {}
+
+                showCompletedNotification(title)
+                return@withContext Result.success(workDataOf("completed" to true, "filePath" to targetFile.absolutePath))
             }
         } catch (e: Exception) {
             // If network interrupted or stream failed, fallback to guaranteed resilient download
