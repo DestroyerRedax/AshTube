@@ -1,7 +1,9 @@
 package com.ashrin.ashtube.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -30,8 +33,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.ashrin.ashtube.data.HomeSection
 import com.ashrin.ashtube.data.MediaItem
 import com.ashrin.ashtube.data.MockCatalogRepository
@@ -144,21 +152,21 @@ private fun PosterMediaCard(
             .width(140.dp)
             .height(210.dp)
             .clickable { onClick() },
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(12.dp),
     ) {
-        androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize()) {
             if (!item.posterUrl.isNullOrEmpty()) {
-                coil.compose.AsyncImage(
+                AsyncImage(
                     model = item.posterUrl,
                     contentDescription = item.title,
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                androidx.compose.foundation.layout.Box(
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .androidx.compose.foundation.background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -170,14 +178,14 @@ private fun PosterMediaCard(
             }
 
             // Scrim gradient for readability
-            androidx.compose.foundation.layout.Box(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .androidx.compose.foundation.background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                    .background(
+                        Brush.verticalGradient(
                             colors = listOf(
-                                androidx.compose.ui.graphics.Color.Transparent,
-                                androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.85f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.85f),
                             ),
                             startY = 180f,
                         ),
@@ -193,27 +201,27 @@ private fun PosterMediaCard(
             ) {
                 val badgeText = item.provider ?: item.type
                 Surface(
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
-                    color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.65f),
+                    shape = RoundedCornerShape(4.dp),
+                    color = Color.Black.copy(alpha = 0.65f),
                 ) {
                     Text(
                         text = badgeText,
                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = androidx.compose.ui.graphics.Color.White,
+                        color = Color.White,
                     )
                 }
 
                 if (item.rating != null) {
                     Surface(
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
-                        color = androidx.compose.ui.graphics.Color(0xFFE5A00D).copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color(0xFFE5A00D).copy(alpha = 0.9f),
                     ) {
                         Text(
                             text = item.rating,
                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = androidx.compose.ui.graphics.Color.Black,
+                            color = Color.Black,
                             fontWeight = FontWeight.Bold,
                         )
                     }
@@ -231,14 +239,14 @@ private fun PosterMediaCard(
                     text = item.title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = androidx.compose.ui.graphics.Color.White,
+                    color = Color.White,
                     maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = "${item.type} • ${item.year}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.75f),
+                    color = Color.White.copy(alpha = 0.75f),
                 )
             }
         }
@@ -360,17 +368,17 @@ private fun SearchResultCard(
                 modifier = Modifier
                     .width(64.dp)
                     .height(96.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(6.dp),
             ) {
                 if (!item.posterUrl.isNullOrEmpty()) {
-                    coil.compose.AsyncImage(
+                    AsyncImage(
                         model = item.posterUrl,
                         contentDescription = item.title,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
-                    androidx.compose.foundation.layout.Box(
+                    Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -387,7 +395,7 @@ private fun SearchResultCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -398,7 +406,7 @@ private fun SearchResultCard(
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Surface(
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                        shape = RoundedCornerShape(4.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer,
                     ) {
                         Text(
@@ -412,7 +420,7 @@ private fun SearchResultCard(
                         Text(
                             text = item.rating,
                             style = MaterialTheme.typography.labelSmall,
-                            color = androidx.compose.ui.graphics.Color(0xFFE5A00D),
+                            color = Color(0xFFE5A00D),
                             fontWeight = FontWeight.Bold,
                         )
                     }

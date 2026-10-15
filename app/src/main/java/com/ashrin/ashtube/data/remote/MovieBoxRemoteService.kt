@@ -224,6 +224,7 @@ object MovieBoxRemoteService {
                 val stype = sub.optInt("subjectType", 1)
                 val type = if (stype == 2) "Series" else "Movie"
                 val releaseDate = sub.optString("releaseDate")
+                val year = if (releaseDate.length >= 4) releaseDate.substring(0, 4) else "2024"
                 val coverObj = sub.optJSONObject("cover")
                 val posterUrl = coverObj?.optString("url")?.ifEmpty { null } ?: sub.optString("cover").ifEmpty { null }
                 val rating = sub.optDouble("imdbRating", 0.0).let { if (it > 0) "★ %.1f".format(it) else null }

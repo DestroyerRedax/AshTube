@@ -1,6 +1,8 @@
 package com.ashrin.ashtube.ui.details
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -25,13 +28,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.ashrin.ashtube.data.AshTubeRepository
 import com.ashrin.ashtube.data.Episode
 import com.ashrin.ashtube.data.MockCatalogRepository
@@ -44,7 +52,7 @@ fun DetailScreen(
     onPlay: (mediaId: String, episodeNumber: Int?) -> Unit,
 ) {
     val context = LocalContext.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     val repository = remember { AshTubeRepository.getInstance(context) }
 
     var details by remember(mediaId) {
@@ -150,23 +158,23 @@ fun DetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(16.dp),
                 ) {
-                    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
-                        coil.compose.AsyncImage(
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AsyncImage(
                             model = imgUrl,
                             contentDescription = item.title,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize(),
                         )
-                        androidx.compose.foundation.layout.Box(
+                        Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .androidx.compose.foundation.background(
-                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                .background(
+                                    Brush.verticalGradient(
                                         colors = listOf(
-                                            androidx.compose.ui.graphics.Color.Transparent,
-                                            androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.8f),
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.8f),
                                         ),
                                         startY = 100f,
                                     ),
@@ -179,7 +187,7 @@ fun DetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Surface(
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                                shape = RoundedCornerShape(4.dp),
                                 color = MaterialTheme.colorScheme.primaryContainer,
                             ) {
                                 Text(
@@ -192,14 +200,14 @@ fun DetailScreen(
                             }
                             if (item.rating != null) {
                                 Surface(
-                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
-                                    color = androidx.compose.ui.graphics.Color(0xFFE5A00D),
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFFE5A00D),
                                 ) {
                                     Text(
                                         text = item.rating,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = androidx.compose.ui.graphics.Color.Black,
+                                        color = Color.Black,
                                         fontWeight = FontWeight.Bold,
                                     )
                                 }
