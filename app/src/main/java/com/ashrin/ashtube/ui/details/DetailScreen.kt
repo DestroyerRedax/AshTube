@@ -35,6 +35,7 @@ import com.ashrin.ashtube.data.MockCatalogRepository
 fun DetailScreen(
     mediaId: String,
     onBack: () -> Unit,
+    onPlay: (mediaId: String, episodeNumber: Int?) -> Unit,
 ) {
     val details = MockCatalogRepository.getDetails(mediaId)
     var isFavorite by rememberSaveable(mediaId) {
@@ -108,8 +109,7 @@ fun DetailScreen(
             ) {
                 Button(
                     onClick = {
-                        MockCatalogRepository.recordHistory(mediaId)
-                        actionFeedback = "Simulating playback for '${item.title}'..."
+                        onPlay(mediaId, null)
                     },
                     modifier = Modifier.weight(1f),
                 ) {
@@ -192,8 +192,7 @@ fun DetailScreen(
                     EpisodeRow(
                         episode = episode,
                         onPlay = {
-                            MockCatalogRepository.recordHistory(mediaId)
-                            actionFeedback = "Playing S${episode.season}E${episode.episode}: ${episode.title} (mock)"
+                            onPlay(mediaId, episode.episode)
                         },
                     )
                     Spacer(modifier = Modifier.height(8.dp))

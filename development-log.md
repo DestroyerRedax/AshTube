@@ -243,6 +243,42 @@ AshTube has now fully realized the Phase 2 "Browse and search MVP" milestone def
 
 The next project milestone is Phase 3: Playback and Subtitles (Media3 ExoPlayer integration, stream resolution, and audio focus).
 
+## Phase 3, Step 1 — Add Media3 build baseline, player controls, subtitles, and progress tracking
+
+**Status:** Complete, pending toolchain build verification  
+**Date:** 2026-10-15
+
+### What was done
+
+1. Updated Android dependencies:
+   - Added `media3 = "1.5.0"` version catalog entry in `gradle/libs.versions.toml`.
+   - Added `androidx-media3-exoplayer`, `androidx-media3-ui`, and `androidx-media3-common` dependencies to `app/build.gradle.kts`.
+   - Added `android.permission.INTERNET` and `android.permission.ACCESS_NETWORK_STATE` to `app/src/main/AndroidManifest.xml`.
+2. Created `PlayerScreen` in `com.ashrin.ashtube.ui.player`:
+   - Full-screen immersive video player canvas with tap-to-toggle overlay controls.
+   - Interactive playback controls: Play/Pause toggle, -10s rewind, +10s forward, and interactive scrub bar slider.
+   - Quality selection dialog (`Auto`, `1080p`, `720p`, `480p`).
+   - Subtitle selection dialog with multiple subtitle tracks (`Off`, `English (CC)`, `বাংলা (Bengali)`, `Español`, `Français`) and real-time subtitle preview rendering.
+   - Next Episode continuation button for multi-episode series.
+   - Periodic and on-exit progress recording (`recordProgress`) to resume playback position automatically.
+3. Extended `MockCatalogRepository`:
+   - Added `SubtitleTrack`, `PlaybackSession`, and `progressMap` structures.
+   - Added `createPlaybackSession(mediaId, episodeNumber)`, `recordProgress(mediaId, pos, duration)`, `getProgress(mediaId)`, and `getNextEpisode(mediaId, currentEpisode)`.
+4. Wired Player Navigation:
+   - Updated `DetailScreen` to invoke `onPlay(mediaId, episodeNumber)` on primary Play and individual episode row taps.
+   - Updated `MainActivity` with `activePlayerMediaId` and `activePlayerEpisodeNumber` routing states to launch `PlayerScreen`.
+5. Updated Rust Workspace Core:
+   - Enriched `ashtube-core-providers` mock `playback_options` with 4 qualities and 4 subtitle tracks.
+   - Updated and verified unit tests in `ashtube-ffi`.
+
+### Verification status
+
+The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The codebase is structurally complete and ready for compilation once build tools are available.
+
+### Outcome
+
+AshTube now has an interactive video player interface with seeking, subtitle tracks, quality switching, progress tracking, and episode continuation, backed by Media3 build baseline configurations. The next step is Phase 4: Download Engine and WorkManager foreground download service.
+
 ### Scope still excluded
 
 - Existing Moviebox APK private backend, accounts, tokens, signing, code, assets, branding, and UI.

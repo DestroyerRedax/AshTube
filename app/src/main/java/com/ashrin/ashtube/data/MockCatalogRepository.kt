@@ -20,11 +20,38 @@ data class MediaDetails(
     val availableQualities: List<String> = listOf("Auto", "1080p", "720p", "480p"),
 )
 
+data class SubtitleTrack(
+    val id: String,
+    val language: String,
+    val label: String,
+)
+
+data class PlaybackSession(
+    val mediaId: String,
+    val title: String,
+    val type: String,
+    val episodeTitle: String? = null,
+    val seasonNumber: Int? = null,
+    val episodeNumber: Int? = null,
+    val durationMs: Long = 7200000L,
+    val startPositionMs: Long = 0L,
+    val availableQualities: List<String> = listOf("Auto", "1080p", "720p", "480p"),
+    val availableSubtitles: List<SubtitleTrack> = listOf(
+        SubtitleTrack("sub-none", "None", "Off"),
+        SubtitleTrack("sub-en", "English", "English (CC)"),
+        SubtitleTrack("sub-bn", "Bengali", "বাংলা (Bengali)"),
+        SubtitleTrack("sub-es", "Spanish", "Español"),
+        SubtitleTrack("sub-fr", "French", "Français"),
+    ),
+)
+
 data class HistoryEntry(
     val mediaId: String,
     val title: String,
     val type: String,
     val year: String,
+    val positionMs: Long = 0L,
+    val durationMs: Long = 7200000L,
     val timestamp: Long = System.currentTimeMillis(),
 )
 
@@ -246,5 +273,48 @@ object MockCatalogRepository {
 
     fun removeDownload(id: String) {
         downloads.removeAll { it.id == id }
+    }
+
+    private val progressMap = mutableMapOf<String, Long>()
+
+    fun recordProgress(mediaId: String, positionMs: Long, durationMs: Long) {
+        progressMap[mediaId] = positionMs
+        val item = findItem(mediaId) ?: return
+        history.removeAll { it.mediaId == id }
+        history.add(0, HistoryEntry(item.id, item.title, item.type, item.year, positionMs, durationMs))
+    }
+
+    fun getProgress(mediaId: String): Long = progressMap[mediaId] ?: 0L
+
+    fun createPlaybackSession(mediaId: String, episodeNumber: Int? = null): PlaybackSession? {
+        val details = getDetails(mediaId) ?: return null
+        val item = details.item
+        val episode = if (episodeNumber != null) {
+            details.episodes.find { it.episode == episodeNumber }
+        } else if (details.episodes.isNotEmpty()) {
+            details.episodes.first()
+        } else {
+            null
+        }
+
+        val startPos = getProgress(mediaId)
+        recordHistory(mediaId)
+
+        return PlaybackSession(
+            mediaId = item.id,
+            title = item.title,
+            type = item.type,
+            episodeTitle = episode?.title,
+            seasonNumber = episode?.season,
+            episodeNumber = episode?.episode,
+            durationMs = 7200000L,
+            startPositionMs = startPos,
+            availableQualities = details.availableQualities,
+        )
+    }
+
+    fun getNextEpisode(mediaId: String, currentEpisodeNumber: Int): Episode? {
+        val details = getDetails(mediaId) ?: return null
+        return details.episodes.find { it.episode == currentEpisodeNumber + 1 }
     }
 }

@@ -61,8 +61,8 @@ mod tests {
         assert_eq!(details.episodes.len(), 2);
 
         let options = core.playback_options("mock-series-1").unwrap();
-        assert_eq!(options.qualities, vec!["Auto", "1080p", "720p"]);
-        assert_eq!(options.subtitles.len(), 1);
+        assert_eq!(options.qualities, vec!["Auto", "1080p", "720p", "480p"]);
+        assert_eq!(options.subtitles.len(), 4);
     }
 
     #[test]

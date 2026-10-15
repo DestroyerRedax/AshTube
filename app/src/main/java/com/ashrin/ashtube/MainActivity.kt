@@ -35,6 +35,7 @@ import com.ashrin.ashtube.ui.details.DetailScreen
 import com.ashrin.ashtube.ui.home.HomeScreen
 import com.ashrin.ashtube.ui.home.SearchScreen
 import com.ashrin.ashtube.ui.library.LibraryScreen
+import com.ashrin.ashtube.ui.player.PlayerScreen
 import com.ashrin.ashtube.ui.settings.SettingsScreen
 import com.ashrin.ashtube.ui.theme.AshTubeTheme
 
@@ -63,12 +64,26 @@ private fun AshTubeApp() {
     var currentTab by rememberSaveable { mutableStateOf(MainTab.HOME) }
     var showingAdultSection by rememberSaveable { mutableStateOf(false) }
     var selectedMediaId by rememberSaveable { mutableStateOf<String?>(null) }
+    var activePlayerMediaId by rememberSaveable { mutableStateOf<String?>(null) }
+    var activePlayerEpisodeNumber by rememberSaveable { mutableStateOf<Int?>(null) }
 
     when {
         !noticeAccepted -> LegalNoticeScreen(onContinue = { noticeAccepted = true })
+        activePlayerMediaId != null -> PlayerScreen(
+            mediaId = activePlayerMediaId!!,
+            initialEpisodeNumber = activePlayerEpisodeNumber,
+            onBack = {
+                activePlayerMediaId = null
+                activePlayerEpisodeNumber = null
+            },
+        )
         selectedMediaId != null -> DetailScreen(
             mediaId = selectedMediaId!!,
             onBack = { selectedMediaId = null },
+            onPlay = { id, ep ->
+                activePlayerMediaId = id
+                activePlayerEpisodeNumber = ep
+            },
         )
         showingAdultSection -> AdultScreen(
             onBack = { showingAdultSection = false },

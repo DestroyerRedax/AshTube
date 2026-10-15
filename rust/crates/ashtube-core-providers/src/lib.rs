@@ -139,11 +139,25 @@ impl CatalogProvider for MockCatalogProvider {
         Self::find(media_id)?;
         Ok(PlaybackOptions {
             media_id: media_id.into(),
-            qualities: vec!["Auto".into(), "1080p".into(), "720p".into()],
-            subtitles: vec![SubtitleTrack {
-                language: "English".into(),
-                label: "English (mock)".into(),
-            }],
+            qualities: vec!["Auto".into(), "1080p".into(), "720p".into(), "480p".into()],
+            subtitles: vec![
+                SubtitleTrack {
+                    language: "English".into(),
+                    label: "English (CC)".into(),
+                },
+                SubtitleTrack {
+                    language: "Bengali".into(),
+                    label: "বাংলা (Bengali)".into(),
+                },
+                SubtitleTrack {
+                    language: "Spanish".into(),
+                    label: "Español".into(),
+                },
+                SubtitleTrack {
+                    language: "French".into(),
+                    label: "Français".into(),
+                },
+            ],
         })
     }
 }
