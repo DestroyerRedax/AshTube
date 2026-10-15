@@ -3,6 +3,7 @@ members = [
     "crates/ashtube-core-models",
     "crates/ashtube-core-providers",
     "crates/ashtube-core-downloads",
+    "crates/ashtube-core-storage",
     "crates/ashtube-ffi",
 ]
 resolver = "2"

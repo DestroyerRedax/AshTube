@@ -9,6 +9,7 @@ publish = false
 ashtube-core-downloads = { path = "../ashtube-core-downloads" }
 ashtube-core-models = { path = "../ashtube-core-models" }
 ashtube-core-providers = { path = "../ashtube-core-providers" }
+ashtube-core-storage = { path = "../ashtube-core-storage" }
 
 [lib]
 crate-type = ["lib", "cdylib"]

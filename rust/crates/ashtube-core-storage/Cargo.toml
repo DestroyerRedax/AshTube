@@ -1,0 +1,7 @@
+[package]
+name = "ashtube-core-storage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ashtube-core-models = { path = "../ashtube-core-models" }

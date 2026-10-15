@@ -39,6 +39,13 @@ import com.ashrin.ashtube.ui.player.PlayerScreen
 import com.ashrin.ashtube.ui.settings.SettingsScreen
 import com.ashrin.ashtube.ui.theme.AshTubeTheme
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.ashrin.ashtube.data.local.preferences.AppPreferences
+import kotlinx.coroutines.launch
+
 enum class MainTab {
     HOME,
     SEARCH,
@@ -60,7 +67,13 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun AshTubeApp() {
-    var noticeAccepted by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val appPreferences = remember { AppPreferences(context) }
+    val persistedNoticeAccepted by appPreferences.noticeAcceptedFlow.collectAsState(initial = false)
+    var inMemoryNoticeAccepted by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val noticeAccepted = inMemoryNoticeAccepted ?: persistedNoticeAccepted
+
     var currentTab by rememberSaveable { mutableStateOf(MainTab.HOME) }
     var showingAdultSection by rememberSaveable { mutableStateOf(false) }
     var selectedMediaId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -68,7 +81,12 @@ private fun AshTubeApp() {
     var activePlayerEpisodeNumber by rememberSaveable { mutableStateOf<Int?>(null) }
 
     when {
-        !noticeAccepted -> LegalNoticeScreen(onContinue = { noticeAccepted = true })
+        !noticeAccepted -> LegalNoticeScreen(
+            onContinue = {
+                inMemoryNoticeAccepted = true
+                scope.launch { appPreferences.setNoticeAccepted(true) }
+            },
+        )
         activePlayerMediaId != null -> PlayerScreen(
             mediaId = activePlayerMediaId!!,
             initialEpisodeNumber = activePlayerEpisodeNumber,

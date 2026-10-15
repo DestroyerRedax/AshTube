@@ -308,7 +308,37 @@ The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The 
 
 ### Outcome
 
-AshTube now has a full background download engine contract with WorkManager service integration, notification channels, interactive queue controls (Pause, Resume, Retry, Play, Delete), and synchronized Rust/Kotlin models. The next step is Phase 5: Room database for local offline history/favourites persistence and DataStore for settings.
+AshTube now has a full background download engine contract with WorkManager service integration, notification channels, interactive queue controls (Pause, Resume, Retry, Play, Delete), and synchronized Rust/Kotlin models.
+
+## Phase 5, Step 1 — Local Room SQLite database, DataStore preferences, and storage contracts
+
+**Status:** Complete, pending toolchain build verification  
+**Date:** 2026-10-15
+
+### What was done
+
+1. Updated Android build baseline and code generation:
+   - Added Room (`2.6.1`), DataStore Preferences (`1.1.1`), and Google KSP (`2.0.21-1.0.27`) to `gradle/libs.versions.toml`.
+   - Applied `com.google.devtools.ksp` plugin and added Room runtime, Room KTX, Room compiler, and DataStore dependencies in `app/build.gradle.kts`.
+2. Created Room SQLite persistence layer in `com.ashrin.ashtube.data.local`:
+   - Entities: `FavoriteEntity`, `HistoryEntity`, and `DownloadEntity` with primary keys, metadata, and timestamps.
+   - DAOs: `FavoriteDao` (Flow query, insert, delete, clear), `HistoryDao` (Flow query, upsert, progress tracking, delete, clear), and `DownloadDao` (Flow query, state updates, progress updates, delete).
+   - Database: `AshTubeDatabase` Room database singleton with thread-safe builder and destructive migration fallback for development.
+3. Created DataStore Preferences layer in `com.ashrin.ashtube.data.local.preferences`:
+   - `AppPreferences` managing asynchronous Flow-backed settings: `KEY_NOTICE_ACCEPTED`, `KEY_ADULT_ACCESS_ENABLED`, `KEY_DEFAULT_QUALITY`, and `KEY_THEME_PREFERENCE`.
+   - Connected `MainActivity` to persist `noticeAccepted` with DataStore so the legal disclaimer gate is remembered after initial acceptance.
+4. Added Rust Storage Crate (`ashtube-core-storage`):
+   - Created crate defining the neutral `Storage` trait for favorites, history, and player state.
+   - Implemented `MockStorage` with unit tests (`mock_storage_favorites_lifecycle`, `mock_storage_history_lifecycle`).
+   - Wired `ashtube-core-storage` into `ashtube-ffi` and added `facade_manages_storage_contracts` test verification.
+
+### Verification status
+
+The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The codebase is structurally complete and ready for compilation once build tools are available.
+
+### Outcome
+
+AshTube now has a complete offline persistence architecture backing user preferences, library history, favourites, and downloads through Android Room, DataStore, and corresponding Rust storage traits.
 
 ### Scope still excluded
 
