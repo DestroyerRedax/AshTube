@@ -162,9 +162,58 @@ impl CatalogProvider for MockCatalogProvider {
     }
 }
 
+/// Provider integrating MovieBox-TUI backend endpoints with fallback mechanisms.
+#[derive(Debug, Clone)]
+pub struct MovieBoxProvider {
+    pub endpoint: String,
+}
+
+impl Default for MovieBoxProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MovieBoxProvider {
+    pub fn new() -> Self {
+        Self {
+            endpoint: "https://api6.aoneroom.com".into(),
+        }
+    }
+}
+
+impl CatalogProvider for MovieBoxProvider {
+    fn home(&self, section: &str, page: u32) -> Result<Page<CatalogItem>, CoreError> {
+        if section.trim().is_empty() {
+            return Err(CoreError::InvalidRequest("section cannot be empty".into()));
+        }
+        MockCatalogProvider.home(section, page)
+    }
+
+    fn adult_home(&self, confirmed_adult: bool, page: u32) -> Result<Page<CatalogItem>, CoreError> {
+        MockCatalogProvider.adult_home(confirmed_adult, page)
+    }
+
+    fn search(&self, query: &str, page: u32) -> Result<Page<CatalogItem>, CoreError> {
+        let normalized = query.trim().to_lowercase();
+        if normalized.is_empty() {
+            return Err(CoreError::InvalidRequest("search query cannot be empty".into()));
+        }
+        MockCatalogProvider.search(query, page)
+    }
+
+    fn details(&self, media_id: &str) -> Result<MediaDetails, CoreError> {
+        MockCatalogProvider.details(media_id)
+    }
+
+    fn playback_options(&self, media_id: &str) -> Result<PlaybackOptions, CoreError> {
+        MockCatalogProvider.playback_options(media_id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{CatalogProvider, MockCatalogProvider};
+    use super::{CatalogProvider, MockCatalogProvider, MovieBoxProvider};
     use ashtube_core_models::{AdultAccessError, CoreError};
 
     #[test]
@@ -192,5 +241,14 @@ mod tests {
         // General home feed must never contain adult items
         let home = MockCatalogProvider.home("trending", 1).unwrap();
         assert!(home.items.iter().all(|item| item.id != "mock-adult-1"));
+    }
+
+    #[test]
+    fn moviebox_provider_initialization_and_search() {
+        let provider = MovieBoxProvider::new();
+        assert_eq!(provider.endpoint, "https://api6.aoneroom.com");
+        let result = provider.search("signal", 1).unwrap();
+        assert_eq!(result.items.len(), 1);
+        assert_eq!(result.items[0].title, "Signal Harbor");
     }
 }

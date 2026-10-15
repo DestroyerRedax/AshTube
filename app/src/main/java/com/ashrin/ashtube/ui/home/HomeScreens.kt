@@ -15,14 +15,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -32,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.ashrin.ashtube.data.HomeSection
 import com.ashrin.ashtube.data.MediaItem
 import com.ashrin.ashtube.data.MockCatalogRepository
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
@@ -39,7 +43,22 @@ fun HomeScreen(
     onOpenAdult: () -> Unit,
     onOpenDetails: (String) -> Unit,
 ) {
-    val sections = MockCatalogRepository.homeSections()
+    var sections by remember { mutableStateOf(MockCatalogRepository.homeSections()) }
+    var isLoadingFeed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isLoadingFeed = true
+        try {
+            val liveSections = MockCatalogRepository.fetchLiveHomeSections()
+            if (liveSections.isNotEmpty()) {
+                sections = liveSections
+            }
+        } catch (_: Exception) {
+            // Keep local default sections on network failure
+        } finally {
+            isLoadingFeed = false
+        }
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -51,7 +70,16 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("AshTube", style = MaterialTheme.typography.headlineMedium)
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isLoadingFeed) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .width(20.dp)
+                                .height(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                    }
                     TextButton(onClick = onSearch) {
                         Text("Search")
                     }
@@ -135,7 +163,31 @@ fun SearchScreen(
     onOpenDetails: (String) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    val results = MockCatalogRepository.search(query)
+    var results by remember { mutableStateOf(MockCatalogRepository.search(query)) }
+    var isSearching by remember { mutableStateOf(false) }
+
+    LaunchedEffect(query) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            results = emptyList()
+            isSearching = false
+            return@LaunchedEffect
+        }
+        // Show immediate local results first
+        results = MockCatalogRepository.search(trimmed)
+        delay(350L) // Debounce typing
+        isSearching = true
+        try {
+            val liveResults = MockCatalogRepository.searchLive(trimmed)
+            if (liveResults.isNotEmpty()) {
+                results = liveResults
+            }
+        } catch (_: Exception) {
+            // Keep local matches
+        } finally {
+            isSearching = false
+        }
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -146,8 +198,20 @@ fun SearchScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Search", style = MaterialTheme.typography.headlineMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Search", style = MaterialTheme.typography.headlineMedium)
+                    if (isSearching) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .width(20.dp)
+                                .height(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                }
                 TextButton(onClick = onBack) {
                     Text("Back")
                 }
@@ -158,13 +222,15 @@ fun SearchScreen(
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("Search titles") },
+                label = { Text("Search titles (movies, series, anime)") },
             )
             Spacer(modifier = Modifier.height(20.dp))
             if (query.isBlank()) {
-                Text("Type a title to search the local development catalogue.")
-            } else if (results.isEmpty()) {
-                Text("No local results found for \"$query\".")
+                Text("Type a title to search the live MovieBox and local catalogue.")
+            } else if (results.isEmpty() && !isSearching) {
+                Text("No results found for \"$query\".")
+            } else if (results.isEmpty() && isSearching) {
+                Text("Searching MovieBox database...")
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(results, key = MediaItem::id) { item ->

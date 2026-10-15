@@ -36,8 +36,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem as Media3MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import com.ashrin.ashtube.data.MockCatalogRepository
 import com.ashrin.ashtube.data.PlaybackSession
 import com.ashrin.ashtube.data.SubtitleTrack
@@ -49,9 +54,43 @@ fun PlayerScreen(
     initialEpisodeNumber: Int? = null,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
     var activeEpisodeNumber by rememberSaveable(mediaId) { mutableStateOf(initialEpisodeNumber) }
     var session by remember(mediaId, activeEpisodeNumber) {
         mutableStateOf(MockCatalogRepository.createPlaybackSession(mediaId, activeEpisodeNumber))
+    }
+    var isLoadingSession by remember(mediaId, activeEpisodeNumber) {
+        mutableStateOf(session == null || session?.streamUrl == null)
+    }
+
+    LaunchedEffect(mediaId, activeEpisodeNumber) {
+        try {
+            val liveSession = MockCatalogRepository.createPlaybackSessionLive(mediaId, activeEpisodeNumber)
+            if (liveSession != null) {
+                session = liveSession
+            }
+        } catch (_: Exception) {
+            // Keep local mock session
+        } finally {
+            isLoadingSession = false
+        }
+    }
+
+    if (session == null && isLoadingSession) {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Resolving MovieBox media stream...", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+        return
     }
 
     if (session == null) {
@@ -84,24 +123,54 @@ fun PlayerScreen(
     var showSubtitleDialog by rememberSaveable { mutableStateOf(false) }
     var showControls by rememberSaveable { mutableStateOf(true) }
 
-    // Periodic progress ticker and recording
-    LaunchedEffect(isPlaying, mediaId, activeEpisodeNumber) {
+    // Media3 ExoPlayer instance for live stream playback
+    val exoPlayer = remember(context, currentSession.streamUrl) {
+        val url = currentSession.streamUrl
+        if (!url.isNullOrEmpty()) {
+            ExoPlayer.Builder(context).build().apply {
+                val mediaItem = Media3MediaItem.fromUri(url)
+                setMediaItem(mediaItem)
+                if (currentPositionMs > 0L) {
+                    seekTo(currentPositionMs)
+                }
+                prepare()
+                playWhenReady = isPlaying
+            }
+        } else null
+    }
+
+    // Sync isPlaying state with ExoPlayer
+    LaunchedEffect(exoPlayer, isPlaying) {
+        exoPlayer?.playWhenReady = isPlaying
+    }
+
+    // Progress updater for ExoPlayer and simulation fallback
+    LaunchedEffect(exoPlayer, isPlaying, mediaId, activeEpisodeNumber) {
         while (isPlaying) {
             delay(1000L)
-            if (currentPositionMs + 1000L <= currentSession.durationMs) {
-                currentPositionMs += 1000L
-                MockCatalogRepository.recordProgress(mediaId, currentPositionMs, currentSession.durationMs)
+            if (exoPlayer != null) {
+                if (exoPlayer.isPlaying) {
+                    currentPositionMs = exoPlayer.currentPosition
+                    val duration = if (exoPlayer.duration > 0) exoPlayer.duration else currentSession.durationMs
+                    MockCatalogRepository.recordProgress(mediaId, currentPositionMs, duration)
+                }
             } else {
-                isPlaying = false
-                break
+                if (currentPositionMs + 1000L <= currentSession.durationMs) {
+                    currentPositionMs += 1000L
+                    MockCatalogRepository.recordProgress(mediaId, currentPositionMs, currentSession.durationMs)
+                } else {
+                    isPlaying = false
+                    break
+                }
             }
         }
     }
 
-    // Persist position when leaving the player
-    DisposableEffect(mediaId, activeEpisodeNumber) {
+    // Persist position and release player when leaving
+    DisposableEffect(mediaId, activeEpisodeNumber, exoPlayer) {
         onDispose {
             MockCatalogRepository.recordProgress(mediaId, currentPositionMs, currentSession.durationMs)
+            exoPlayer?.release()
         }
     }
 
@@ -115,45 +184,57 @@ fun PlayerScreen(
             .background(Color.Black)
             .clickable { showControls = !showControls },
     ) {
-        // Video viewport simulation canvas
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = currentSession.title,
-                style = MaterialTheme.typography.headlineMedium,
-                color = Color.White.copy(alpha = 0.85f),
-                fontWeight = FontWeight.Bold,
+        if (exoPlayer != null) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = false
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
             )
-            if (currentSession.episodeTitle != null) {
-                Spacer(modifier = Modifier.height(4.dp))
+        } else {
+            // Video viewport simulation canvas
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
                 Text(
-                    text = "S${currentSession.seasonNumber}E${currentSession.episodeNumber} • ${currentSession.episodeTitle}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White.copy(alpha = 0.7f),
+                    text = currentSession.title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontWeight = FontWeight.Bold,
                 )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Stream Quality: $selectedQuality • Subtitles: $selectedSubtitle",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.5f),
-            )
-            if (selectedSubtitle != "Off") {
-                Spacer(modifier = Modifier.height(32.dp))
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.7f)),
-                ) {
+                if (currentSession.episodeTitle != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "[Subtitle: Simulated dialogue stream for '${currentSession.title}']",
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Yellow,
+                        text = "S${currentSession.seasonNumber}E${currentSession.episodeNumber} • ${currentSession.episodeTitle}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.7f),
                     )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Stream Quality: $selectedQuality • Subtitles: $selectedSubtitle",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.5f),
+                )
+                if (selectedSubtitle != "Off") {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.7f)),
+                    ) {
+                        Text(
+                            text = "[Subtitle: Stream track for '${currentSession.title}']",
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Yellow,
+                        )
+                    }
                 }
             }
         }
@@ -175,12 +256,23 @@ fun PlayerScreen(
                 ) {
                     TextButton(onClick = {
                         MockCatalogRepository.recordProgress(mediaId, currentPositionMs, currentSession.durationMs)
+                        exoPlayer?.stop()
                         onBack()
                     }) {
                         Text("← Back", color = Color.White)
                     }
 
-                    Row {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isLoadingSession) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .width(16.dp)
+                                    .height(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         TextButton(onClick = { showSubtitleDialog = true }) {
                             Text("Subtitles: $selectedSubtitle", color = Color.White)
                         }
@@ -200,6 +292,7 @@ fun PlayerScreen(
                     Button(
                         onClick = {
                             currentPositionMs = (currentPositionMs - 10000L).coerceAtLeast(0L)
+                            exoPlayer?.seekTo(currentPositionMs)
                         },
                     ) {
                         Text("-10s")
@@ -208,7 +301,10 @@ fun PlayerScreen(
                     Spacer(modifier = Modifier.width(20.dp))
 
                     Button(
-                        onClick = { isPlaying = !isPlaying },
+                        onClick = {
+                            isPlaying = !isPlaying
+                            exoPlayer?.playWhenReady = isPlaying
+                        },
                     ) {
                         Text(if (isPlaying) "Pause" else "Play")
                     }
@@ -218,6 +314,7 @@ fun PlayerScreen(
                     Button(
                         onClick = {
                             currentPositionMs = (currentPositionMs + 10000L).coerceAtMost(currentSession.durationMs)
+                            exoPlayer?.seekTo(currentPositionMs)
                         },
                     ) {
                         Text("+10s")
@@ -236,6 +333,7 @@ fun PlayerScreen(
                             Button(
                                 onClick = {
                                     MockCatalogRepository.recordProgress(mediaId, currentPositionMs, currentSession.durationMs)
+                                    exoPlayer?.stop()
                                     activeEpisodeNumber = nextEpisode.episode
                                     currentPositionMs = 0L
                                     isPlaying = true
@@ -266,6 +364,7 @@ fun PlayerScreen(
                         value = if (currentSession.durationMs > 0) currentPositionMs.toFloat() / currentSession.durationMs else 0f,
                         onValueChange = { fraction ->
                             currentPositionMs = (fraction * currentSession.durationMs).toLong()
+                            exoPlayer?.seekTo(currentPositionMs)
                         },
                         modifier = Modifier.fillMaxWidth(),
                     )

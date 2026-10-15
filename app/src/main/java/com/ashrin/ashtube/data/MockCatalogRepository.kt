@@ -35,6 +35,7 @@ data class PlaybackSession(
     val episodeNumber: Int? = null,
     val durationMs: Long = 7200000L,
     val startPositionMs: Long = 0L,
+    val streamUrl: String? = null,
     val availableQualities: List<String> = listOf("Auto", "1080p", "720p", "480p"),
     val availableSubtitles: List<SubtitleTrack> = listOf(
         SubtitleTrack("sub-none", "None", "Off"),
@@ -140,6 +141,8 @@ object MockCatalogRepository {
     private val history = mutableListOf<HistoryEntry>()
     private val downloads = mutableListOf<DownloadItem>()
     private val localVideos = mutableMapOf<String, LocalVideoItem>()
+    private val remoteItemsMap = mutableMapOf<String, MediaItem>()
+    private val remoteDetailsMap = mutableMapOf<String, MediaDetails>()
     private var isAdultAccessConfirmed = false
     private var defaultPlaybackQuality = "1080p"
     private var appThemePreference = "Dark"
@@ -205,6 +208,9 @@ object MockCatalogRepository {
         else emptyList()
 
     fun findItem(id: String): MediaItem? {
+        val remote = remoteItemsMap[id]
+        if (remote != null) return remote
+
         val general = allGeneralItems().find { it.id == id }
         if (general != null) return general
 
@@ -220,7 +226,25 @@ object MockCatalogRepository {
     fun search(query: String): List<MediaItem> {
         val normalized = query.trim()
         if (normalized.isEmpty()) return emptyList()
-        return allGeneralItems().filter { item -> item.title.contains(normalized, ignoreCase = true) }
+        val localMatches = allGeneralItems().filter { item -> item.title.contains(normalized, ignoreCase = true) }
+        val remoteMatches = remoteItemsMap.values.filter { item -> item.title.contains(normalized, ignoreCase = true) }
+        return (remoteMatches + localMatches).distinctBy { it.id }
+    }
+
+    /**
+     * Live search executing against the MovieBox-TUI backend with automatic fallback to local catalogue.
+     */
+    suspend fun searchLive(query: String): List<MediaItem> {
+        val normalized = query.trim()
+        if (normalized.isEmpty()) return emptyList()
+        val liveResults = com.ashrin.ashtube.data.remote.MovieBoxRemoteService.search(normalized)
+        if (liveResults.isNotEmpty()) {
+            for (item in liveResults) {
+                remoteItemsMap[item.id] = item
+            }
+            return liveResults
+        }
+        return search(normalized)
     }
 
     /**
@@ -234,6 +258,9 @@ object MockCatalogRepository {
     }
 
     fun getDetails(id: String): MediaDetails? {
+        val cached = remoteDetailsMap[id]
+        if (cached != null) return cached
+
         val item = findItem(id) ?: return null
         val episodes = if (item.type == "Series" || item.type == "Anime" || item.title == "Neon Dreams") {
             listOf(
@@ -245,13 +272,68 @@ object MockCatalogRepository {
         } else {
             emptyList()
         }
-        val summary = "A local mock ${item.type.lowercase()} titled '${item.title}' (${item.year}). " +
-            "This title is used for testing layout, navigation, and local state contracts in AshTube."
+        val summary = "A title titled '${item.title}' (${item.year}). " +
+            "Fetched from AshTube catalogue and media provider."
         return MediaDetails(
             item = item,
             summary = summary,
             episodes = episodes,
         )
+    }
+
+    /**
+     * Live details fetch resolving full overview, casts, and episodes from the MovieBox-TUI backend.
+     */
+    suspend fun getDetailsLive(id: String): MediaDetails? {
+        val cached = remoteDetailsMap[id]
+        if (cached != null && cached.episodes.isNotEmpty()) return cached
+
+        val remote = com.ashrin.ashtube.data.remote.MovieBoxRemoteService.getDetails(id)
+        if (remote != null) {
+            remoteItemsMap[remote.item.id] = remote.item
+            remoteDetailsMap[remote.item.id] = remote
+            return remote
+        }
+        return getDetails(id)
+    }
+
+    /**
+     * Live playback session creator resolving direct streaming URLs from MovieBox-TUI backend.
+     */
+    suspend fun createPlaybackSessionLive(mediaId: String, episodeNumber: Int? = null): PlaybackSession? {
+        val local = localVideos[mediaId]
+        if (local != null || mediaId.startsWith("content://") || mediaId.startsWith("file://")) {
+            return createPlaybackSession(mediaId, episodeNumber)
+        }
+
+        val remoteSession = com.ashrin.ashtube.data.remote.MovieBoxRemoteService.getPlaybackSession(mediaId, episodeNumber)
+        if (remoteSession != null) {
+            recordProgress(mediaId, remoteSession.startPositionMs, remoteSession.durationMs)
+            return remoteSession
+        }
+
+        return createPlaybackSession(mediaId, episodeNumber)
+    }
+
+    /**
+     * Fetch live trending and category rows from the MovieBox-TUI backend.
+     */
+    suspend fun fetchLiveHomeSections(): List<HomeSection> {
+        val live = com.ashrin.ashtube.data.remote.MovieBoxRemoteService.getHomepageSections()
+        if (live.isNotEmpty()) {
+            for (sec in live) {
+                for (item in sec.items) {
+                    remoteItemsMap[item.id] = item
+                }
+            }
+            val favs = getFavorites()
+            val result = live.toMutableList()
+            if (favs.isNotEmpty()) {
+                result.add(0, HomeSection("Your Favourites", favs))
+            }
+            return result
+        }
+        return homeSections()
     }
 
     fun isFavorite(id: String): Boolean = favoriteIds.contains(id)

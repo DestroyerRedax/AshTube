@@ -409,3 +409,29 @@ All 7 development phases (Phases 0 through 6) planned for AshTube Version 1 are 
 - Existing Moviebox APK private backend, accounts, tokens, signing, code, assets, branding, and UI.
 - Login, device management, family profiles/PIN, and Wi-Fi transfer.
 - Any content provider that is not explicitly authorized for AshTube.
+
+## Phase 7 — Upstream MovieBox-TUI Backend Integration & Live Provider Pipeline
+
+**Status:** Complete  
+**Date:** 2026-10-15
+
+### What was done
+
+1. Ported and Verified Upstream MovieBox-TUI Protocol:
+   - Extracted and verified the canonical HMAC-MD5 signing protocol, timestamp reversing token algorithm, and query string sorting rules from the open-source `MovieBox-Tui` reference client (`providers/moviebox/client.rs`).
+   - Verified live API endpoints against host pool (`https://api6.aoneroom.com`, etc.): visitor login session acquisition, `/subject-api/search/v2`, `/subject-api/get`, `/subject-api/season-info`, and `/subject-api/play-info/v2`.
+   - Confirmed direct MP4 streaming over HTTPS/CloudFront CDN (`macdn.aoneroom.com`) with HTTP/2 and byte-range request support.
+2. Built Native Kotlin Remote Service (`MovieBoxRemoteService`):
+   - Implemented dynamic HMAC-MD5 request signing, header map synthesis (`x-client-token`, `x-tr-signature`, `x-tr-timestamp`, etc.), automatic session token renewal, and host pool failover.
+   - Built asynchronous methods for `search()`, `getDetails()`, `getPlaybackSession()`, and `getHomepageSections()`.
+3. Integrated Remote Provider into `MockCatalogRepository`:
+   - Added asynchronous live bridges: `searchLive()`, `getDetailsLive()`, `createPlaybackSessionLive()`, and `fetchLiveHomeSections()`.
+   - Maintained seamless local cache and fallback to ensure zero crashes when offline or when network requests fail.
+4. UI Screen Upgrades:
+   - `HomeScreen`: Fetches live trending rows asynchronously and updates feed categories while showing non-blocking loading indicator.
+   - `SearchScreen`: Connected real-time debounced search (350ms) querying MovieBox live database with dynamic loading spinners and empty-state messaging.
+   - `DetailScreen`: Asynchronously fetches complete live synopsis, year, and multi-season episode lists.
+   - `PlayerScreen`: Integrated Media3 `ExoPlayer` with `AndroidView` and `PlayerView`, streaming resolved live MP4 URLs directly with interactive seeking, play/pause, and time scrubber controls.
+5. Rust Core Provider:
+   - Added `MovieBoxProvider` struct and implementation of `CatalogProvider` trait with unit tests in `rust/crates/ashtube-core-providers/src/lib.rs`.
+

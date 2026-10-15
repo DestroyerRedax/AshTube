@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -20,8 +21,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,7 +40,26 @@ fun DetailScreen(
     onBack: () -> Unit,
     onPlay: (mediaId: String, episodeNumber: Int?) -> Unit,
 ) {
-    val details = MockCatalogRepository.getDetails(mediaId)
+    var details by remember(mediaId) {
+        mutableStateOf(MockCatalogRepository.getDetails(mediaId))
+    }
+    var isLoading by remember(mediaId) {
+        mutableStateOf(details == null || (details?.summary?.contains("A title titled") == true))
+    }
+
+    LaunchedEffect(mediaId) {
+        try {
+            val live = MockCatalogRepository.getDetailsLive(mediaId)
+            if (live != null) {
+                details = live
+            }
+        } catch (_: Exception) {
+            // Keep local fallback details
+        } finally {
+            isLoading = false
+        }
+    }
+
     var isFavorite by rememberSaveable(mediaId) {
         mutableStateOf(MockCatalogRepository.isFavorite(mediaId))
     }
@@ -46,6 +68,21 @@ fun DetailScreen(
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
+        if (details == null && isLoading) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Loading MovieBox title information...", style = MaterialTheme.typography.bodyLarge)
+            }
+            return@Surface
+        }
+
         if (details == null) {
             Column(
                 modifier = Modifier
@@ -63,7 +100,8 @@ fun DetailScreen(
             return@Surface
         }
 
-        val item = details.item
+        val currentDetails = details ?: return@Surface
+        val item = currentDetails.item
 
         Column(
             modifier = Modifier
@@ -79,11 +117,22 @@ fun DetailScreen(
                 TextButton(onClick = onBack) {
                     Text("Back")
                 }
-                Text(
-                    text = item.type,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(16.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(
+                        text = item.type,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -165,30 +214,30 @@ fun DetailScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = details.summary,
+                text = currentDetails.summary,
                 style = MaterialTheme.typography.bodyLarge,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Available Qualities: ${details.availableQualities.joinToString(", ")}",
+                text = "Available Qualities: ${currentDetails.availableQualities.joinToString(", ")}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            if (details.episodes.isNotEmpty()) {
+            if (currentDetails.episodes.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(20.dp))
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Episodes (${details.episodes.size})",
+                    text = "Episodes (${currentDetails.episodes.size})",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(modifier = Modifier.height(10.dp))
 
-                details.episodes.forEach { episode ->
+                currentDetails.episodes.forEach { episode ->
                     EpisodeRow(
                         episode = episode,
                         onPlay = {
