@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "crates/ashtube-core-models",
+    "crates/ashtube-core-providers",
+    "crates/ashtube-core-downloads",
+    "crates/ashtube-ffi",
+]
+resolver = "2"
