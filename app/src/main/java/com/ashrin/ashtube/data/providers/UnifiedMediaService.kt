@@ -48,7 +48,7 @@ object UnifiedMediaService {
                 async {
                     try {
                         provider.search(trimmed)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
                         emptyList()
                     }
                 }
@@ -79,7 +79,7 @@ object UnifiedMediaService {
                 async {
                     try {
                         provider.getHomeSection()
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
                         null
                     }
                 }
@@ -119,7 +119,7 @@ object UnifiedMediaService {
                     itemProviderMap[mediaId] = provider.name
                     return@withContext details
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {}
         }
 
         null
@@ -144,7 +144,7 @@ object UnifiedMediaService {
                 if (session != null && !session.streamUrl.isNullOrEmpty()) {
                     return@withContext session
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {}
         }
 
         // Direct final attempt via VidlinkStreamResolver
@@ -162,7 +162,7 @@ object UnifiedMediaService {
             if (session != null && !session.streamUrl.isNullOrEmpty()) {
                 return@withContext session
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
 
         null
     }

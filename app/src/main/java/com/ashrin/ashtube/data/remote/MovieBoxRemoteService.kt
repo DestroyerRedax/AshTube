@@ -135,7 +135,7 @@ object MovieBoxRemoteService {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {}
         }
         null
     }
@@ -189,7 +189,7 @@ object MovieBoxRemoteService {
                         sessionToken = null // Token expired; refresh on retry
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {}
         }
         null
     }
@@ -329,7 +329,7 @@ object MovieBoxRemoteService {
                     if (base.contains("/dash/")) {
                         return "$base/index.mpd"
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) {}
             }
             if (trimmed.startsWith("CloudFront-Policy=")) {
                 val policyRaw = trimmed.substringAfter("CloudFront-Policy=").trim()
@@ -344,7 +344,7 @@ object MovieBoxRemoteService {
                     if (base.contains("/dash/")) {
                         return "$base/index.mpd"
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) {}
             }
         }
         return null

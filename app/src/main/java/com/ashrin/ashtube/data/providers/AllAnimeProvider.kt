@@ -105,7 +105,7 @@ class AllAnimeProvider : MediaProvider {
                 it.type.equals("Series", ignoreCase = true) || it.type.equals("Anime", ignoreCase = true)
             }.map { it.copy(provider = name, type = "Anime") }
             (localMatches + liveResults).distinctBy { it.id }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             localMatches
         }
     }
@@ -120,7 +120,7 @@ class AllAnimeProvider : MediaProvider {
     override suspend fun getDetails(id: String): MediaDetails? = withContext(Dispatchers.IO) {
         val liveDetails = try {
             CinemetaCatalogService.getDetails(id)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
         if (liveDetails != null) return@withContext liveDetails

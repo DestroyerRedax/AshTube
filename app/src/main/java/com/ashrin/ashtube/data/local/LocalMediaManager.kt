@@ -66,7 +66,7 @@ class LocalMediaManager(private val context: Context) {
                     }
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Handle gracefully when reading folder documents fails
         }
 
@@ -77,7 +77,7 @@ class LocalMediaManager(private val context: Context) {
         try {
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
             context.contentResolver.releasePersistableUriPermission(uri, flags)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Ignore if permission was already revoked or expired
         }
     }
@@ -86,7 +86,7 @@ class LocalMediaManager(private val context: Context) {
         try {
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
             context.contentResolver.takePersistableUriPermission(uri, flags)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Some URI providers may not support persistable flags; proceed anyway
         }
     }
@@ -113,7 +113,7 @@ class LocalMediaManager(private val context: Context) {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
 
         val finalName = displayName ?: uri.lastPathSegment ?: "Local Video"
         var durationMs = 0L
@@ -131,12 +131,12 @@ class LocalMediaManager(private val context: Context) {
             if (width != null && height != null) {
                 resolution = "${width}x${height}"
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Fallback gracefully if retriever fails to read codecs
         } finally {
             try {
                 retriever.release()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {}
         }
 
         return LocalMediaEntity(

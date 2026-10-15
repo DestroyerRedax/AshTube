@@ -61,7 +61,7 @@ fun HomeScreen(
             if (liveSections.isNotEmpty()) {
                 sections = liveSections
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Keep local default sections on network failure
         } finally {
             isLoadingFeed = false
@@ -278,7 +278,7 @@ fun SearchScreen(
             if (liveResults.isNotEmpty()) {
                 results = liveResults
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Keep local matches
         } finally {
             isSearching = false

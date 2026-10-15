@@ -68,7 +68,7 @@ fun DetailScreen(
             if (live != null) {
                 details = live
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Keep local fallback details
         } finally {
             isLoading = false

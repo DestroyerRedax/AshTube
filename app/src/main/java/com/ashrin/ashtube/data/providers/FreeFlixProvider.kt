@@ -85,7 +85,7 @@ class FreeFlixProvider : MediaProvider {
         try {
             val liveResults = CinemetaCatalogService.search(query).map { it.copy(provider = name) }
             (localMatches + liveResults).distinctBy { it.id }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             localMatches
         }
     }
@@ -100,7 +100,7 @@ class FreeFlixProvider : MediaProvider {
     override suspend fun getDetails(id: String): MediaDetails? = withContext(Dispatchers.IO) {
         val liveDetails = try {
             CinemetaCatalogService.getDetails(id)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
         if (liveDetails != null) return@withContext liveDetails

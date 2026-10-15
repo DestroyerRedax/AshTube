@@ -105,7 +105,7 @@ class FlixHqProvider : MediaProvider {
                 it.copy(provider = name)
             }
             (localMatches + liveResults).distinctBy { it.id }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             localMatches
         }
     }
@@ -124,7 +124,7 @@ class FlixHqProvider : MediaProvider {
                     items = curatedMovies,
                 )
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             HomeSection(
                 title = "Hollywood & Hits (mov-cli)",
                 items = curatedMovies,
@@ -135,7 +135,7 @@ class FlixHqProvider : MediaProvider {
     override suspend fun getDetails(id: String): MediaDetails? = withContext(Dispatchers.IO) {
         val liveDetails = try {
             CinemetaCatalogService.getDetails(id)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
         if (liveDetails != null) return@withContext liveDetails

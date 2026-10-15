@@ -21,7 +21,7 @@ class MovieBoxProvider : MediaProvider {
             MovieBoxRemoteService.search(query).map {
                 it.copy(provider = name)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             emptyList()
         }
     }
@@ -35,7 +35,7 @@ class MovieBoxProvider : MediaProvider {
                     items = it.items.map { item -> item.copy(provider = name) },
                 )
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
     }
@@ -46,7 +46,7 @@ class MovieBoxProvider : MediaProvider {
             details?.copy(
                 item = details.item.copy(provider = name),
             )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
     }
@@ -54,7 +54,7 @@ class MovieBoxProvider : MediaProvider {
     override suspend fun resolveStream(id: String, episodeNumber: Int?): PlaybackSession? {
         return try {
             MovieBoxRemoteService.getPlaybackSession(id, episodeNumber)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
     }

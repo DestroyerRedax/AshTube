@@ -55,7 +55,7 @@ class DownloadWorker(
         val foregroundInfo = createForegroundInfo(title, 0, 0L, 0L)
         try {
             setForeground(foregroundInfo)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Foreground promote may fail on API 34+ if lacking special foreground service permissions; continue safely
         }
 
@@ -82,7 +82,7 @@ class DownloadWorker(
             try {
                 val resolved = com.ashrin.ashtube.data.providers.UnifiedMediaService.resolveStream(mediaId)
                 activeStreamUrl = resolved?.streamUrl ?: ""
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 activeStreamUrl = ""
             }
         }
@@ -160,7 +160,7 @@ class DownloadWorker(
 
                                     try {
                                         setForeground(createForegroundInfo(title, progressPercent, bytesDownloaded, totalBytes))
-                                    } catch (_: Exception) {}
+                                    } catch (e: Exception) {}
                                 }
                             }
                         }
@@ -173,13 +173,13 @@ class DownloadWorker(
                     // Index into local media so it appears in Local Media immediately
                     try {
                         AshTubeRepository.getInstance(context).indexLocalFile(Uri.fromFile(targetFile))
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) {}
 
                     showCompletedNotification(title)
                     return@withContext Result.success(workDataOf("completed" to true, "filePath" to targetFile.absolutePath))
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // If network interrupted or stream failed, fallback to guaranteed resilient download
         }
 
@@ -217,7 +217,7 @@ class DownloadWorker(
 
                 try {
                     setForeground(createForegroundInfo(title, progressPercent, bytesDownloaded, totalBytes))
-                } catch (_: Exception) {}
+                } catch (e: Exception) {}
             }
         }
 
@@ -226,7 +226,7 @@ class DownloadWorker(
 
         try {
             AshTubeRepository.getInstance(context).indexLocalFile(Uri.fromFile(targetFile))
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
 
         showCompletedNotification(title)
         Result.success(workDataOf("completed" to true, "filePath" to targetFile.absolutePath))

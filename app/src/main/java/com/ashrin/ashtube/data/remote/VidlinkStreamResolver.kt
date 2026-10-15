@@ -79,7 +79,7 @@ object VidlinkStreamResolver {
                     if (!tmdb.isNullOrEmpty()) return tmdb
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
         return null
     }
 
@@ -102,7 +102,7 @@ object VidlinkStreamResolver {
                     return Pair(tmdb, imdb)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
         return Pair(null, null)
     }
 
@@ -120,7 +120,7 @@ object VidlinkStreamResolver {
                     return json.optString("result").ifEmpty { null }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
         return null
     }
 
@@ -139,7 +139,7 @@ object VidlinkStreamResolver {
                 val json = JSONObject(text)
                 return parseVidlinkResponse(id, title, "Movie", null, null, json)
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
         return null
     }
 
@@ -158,7 +158,7 @@ object VidlinkStreamResolver {
                 val json = JSONObject(text)
                 return parseVidlinkResponse(id, title, "Series", season, episode, json)
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
         return null
     }
 

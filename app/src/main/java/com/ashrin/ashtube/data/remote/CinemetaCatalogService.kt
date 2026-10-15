@@ -43,7 +43,7 @@ object CinemetaCatalogService {
                     val text = conn.inputStream.bufferedReader().use { it.readText() }
                     return JSONObject(text)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 break
             }
         }
