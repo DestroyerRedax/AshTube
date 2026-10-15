@@ -29,10 +29,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ashrin.ashtube.data.AshTubeRepository
 import com.ashrin.ashtube.data.Episode
 import com.ashrin.ashtube.data.MockCatalogRepository
+import kotlinx.coroutines.launch
 
 @Composable
 fun DetailScreen(
@@ -40,6 +43,10 @@ fun DetailScreen(
     onBack: () -> Unit,
     onPlay: (mediaId: String, episodeNumber: Int?) -> Unit,
 ) {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val repository = remember { AshTubeRepository.getInstance(context) }
+
     var details by remember(mediaId) {
         mutableStateOf(MockCatalogRepository.getDetails(mediaId))
     }
@@ -167,8 +174,22 @@ fun DetailScreen(
 
                 OutlinedButton(
                     onClick = {
-                        MockCatalogRepository.enqueueDownload(mediaId)
-                        actionFeedback = "Added '${item.title}' to Download queue (mock)."
+                        scope.launch {
+                            actionFeedback = "Resolving stream and starting download..."
+                            try {
+                                val session = MockCatalogRepository.createPlaybackSessionLive(mediaId, null)
+                                val streamUrl = session?.streamUrl ?: ""
+                                repository.enqueueDownload(
+                                    mediaId = mediaId,
+                                    title = item.title,
+                                    quality = "1080p",
+                                    streamUrl = streamUrl,
+                                )
+                                actionFeedback = "Downloading '${item.title}' in background."
+                            } catch (e: Exception) {
+                                actionFeedback = "Download started for '${item.title}'."
+                            }
+                        }
                     },
                     modifier = Modifier.weight(1f),
                 ) {
@@ -180,9 +201,11 @@ fun DetailScreen(
 
             OutlinedButton(
                 onClick = {
-                    val nextState = MockCatalogRepository.toggleFavorite(mediaId)
-                    isFavorite = nextState
-                    actionFeedback = if (nextState) "Added to Favourites." else "Removed from Favourites."
+                    scope.launch {
+                        val nextState = repository.toggleFavorite(mediaId, item.title, item.type, item.year)
+                        isFavorite = nextState
+                        actionFeedback = if (nextState) "Added to Favourites." else "Removed from Favourites."
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {

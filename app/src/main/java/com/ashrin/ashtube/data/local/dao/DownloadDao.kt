@@ -27,6 +27,12 @@ interface DownloadDao {
     @Query("UPDATE downloads SET progress = :progress, bytesDownloaded = :bytesDownloaded, state = :state WHERE id = :id")
     suspend fun updateProgress(id: String, progress: Float, bytesDownloaded: Long, state: String)
 
+    @Query("UPDATE downloads SET progress = :progress, bytesDownloaded = :bytesDownloaded, totalBytes = :totalBytes, state = :state WHERE id = :id")
+    suspend fun updateProgressAndTotal(id: String, progress: Float, bytesDownloaded: Long, totalBytes: Long, state: String)
+
+    @Query("UPDATE downloads SET progress = 1.0, bytesDownloaded = totalBytes, state = 'COMPLETED', localFilePath = :localFilePath WHERE id = :id")
+    suspend fun markCompleted(id: String, localFilePath: String)
+
     @Query("DELETE FROM downloads WHERE id = :id")
     suspend fun deleteById(id: String)
 

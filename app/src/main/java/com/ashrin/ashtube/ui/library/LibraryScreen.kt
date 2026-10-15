@@ -86,7 +86,7 @@ fun LibraryScreen(
             when (selectedTab) {
                 0 -> HistoryTab(onOpenDetails = onOpenDetails)
                 1 -> FavouritesTab(onOpenDetails = onOpenDetails)
-                2 -> DownloadsTab(onOpenDetails = onOpenDetails)
+                2 -> DownloadsTab(onOpenDetails = onOpenDetails, onPlayMedia = onPlayMedia)
                 3 -> LocalVideosTab(onPlayMedia = onPlayMedia)
             }
         }
@@ -95,7 +95,27 @@ fun LibraryScreen(
 
 @Composable
 private fun HistoryTab(onOpenDetails: (String) -> Unit) {
-    var history by rememberSaveable { mutableStateOf(MockCatalogRepository.getHistory()) }
+    val context = LocalContext.current
+    val repository = remember { AshTubeRepository.getInstance(context) }
+    val scope = rememberCoroutineScope()
+    val dbHistory by repository.historyFlow.collectAsState(initial = emptyList())
+    val mockHistory = MockCatalogRepository.getHistory()
+
+    val history = if (dbHistory.isNotEmpty()) {
+        dbHistory.map {
+            HistoryEntry(
+                mediaId = it.mediaId,
+                title = it.title,
+                type = it.type,
+                year = it.year,
+                positionMs = it.positionMs,
+                durationMs = it.durationMs,
+                timestamp = it.lastWatchedAt,
+            )
+        }
+    } else {
+        mockHistory
+    }
 
     if (history.isEmpty()) {
         EmptyStateView(
@@ -118,8 +138,9 @@ private fun HistoryTab(onOpenDetails: (String) -> Unit) {
                 )
                 TextButton(
                     onClick = {
-                        MockCatalogRepository.clearHistory()
-                        history = emptyList()
+                        scope.launch {
+                            repository.clearHistory()
+                        }
                     },
                 ) {
                     Text("Clear history")
@@ -170,7 +191,24 @@ private fun HistoryTab(onOpenDetails: (String) -> Unit) {
 
 @Composable
 private fun FavouritesTab(onOpenDetails: (String) -> Unit) {
-    var favourites by rememberSaveable { mutableStateOf(MockCatalogRepository.getFavorites()) }
+    val context = LocalContext.current
+    val repository = remember { AshTubeRepository.getInstance(context) }
+    val scope = rememberCoroutineScope()
+    val dbFavorites by repository.favoritesFlow.collectAsState(initial = emptyList())
+    val mockFavorites = MockCatalogRepository.getFavorites()
+
+    val favourites = if (dbFavorites.isNotEmpty()) {
+        dbFavorites.map {
+            MediaItem(
+                id = it.mediaId,
+                title = it.title,
+                type = it.type,
+                year = it.year,
+            )
+        }
+    } else {
+        mockFavorites
+    }
 
     if (favourites.isEmpty()) {
         EmptyStateView(
@@ -193,8 +231,9 @@ private fun FavouritesTab(onOpenDetails: (String) -> Unit) {
                 )
                 TextButton(
                     onClick = {
-                        MockCatalogRepository.clearFavorites()
-                        favourites = emptyList()
+                        scope.launch {
+                            repository.clearFavorites()
+                        }
                     },
                 ) {
                     Text("Clear all")
@@ -244,8 +283,40 @@ private fun FavouritesTab(onOpenDetails: (String) -> Unit) {
 }
 
 @Composable
-private fun DownloadsTab(onOpenDetails: (String) -> Unit) {
-    var downloads by rememberSaveable { mutableStateOf(MockCatalogRepository.getDownloads()) }
+private fun DownloadsTab(
+    onOpenDetails: (String) -> Unit,
+    onPlayMedia: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    val repository = remember { AshTubeRepository.getInstance(context) }
+    val scope = rememberCoroutineScope()
+    val dbDownloads by repository.downloadsFlow.collectAsState(initial = emptyList())
+    val mockDownloads = MockCatalogRepository.getDownloads()
+
+    val downloads = if (dbDownloads.isNotEmpty()) {
+        dbDownloads.map { entity ->
+            val state = when (entity.state.uppercase()) {
+                "QUEUED" -> DownloadState.QUEUED
+                "DOWNLOADING" -> DownloadState.DOWNLOADING
+                "PAUSED" -> DownloadState.PAUSED
+                "COMPLETED" -> DownloadState.COMPLETED
+                else -> DownloadState.FAILED
+            }
+            DownloadItem(
+                id = entity.id,
+                mediaId = entity.mediaId,
+                title = entity.title,
+                quality = entity.quality,
+                progress = entity.progress,
+                bytesDownloaded = entity.bytesDownloaded,
+                totalBytes = entity.totalBytes,
+                state = state,
+                localFilePath = entity.localFilePath,
+            )
+        }
+    } else {
+        mockDownloads
+    }
 
     if (downloads.isEmpty()) {
         EmptyStateView(
@@ -308,8 +379,9 @@ private fun DownloadsTab(onOpenDetails: (String) -> Unit) {
                                 DownloadState.DOWNLOADING -> {
                                     TextButton(
                                         onClick = {
-                                            MockCatalogRepository.pauseDownload(item.id)
-                                            downloads = MockCatalogRepository.getDownloads()
+                                            scope.launch {
+                                                repository.pauseDownload(item.id)
+                                            }
                                         },
                                     ) {
                                         Text("Pause")
@@ -318,8 +390,9 @@ private fun DownloadsTab(onOpenDetails: (String) -> Unit) {
                                 DownloadState.PAUSED -> {
                                     TextButton(
                                         onClick = {
-                                            MockCatalogRepository.resumeDownload(item.id)
-                                            downloads = MockCatalogRepository.getDownloads()
+                                            scope.launch {
+                                                repository.resumeDownload(item.id)
+                                            }
                                         },
                                     ) {
                                         Text("Resume")
@@ -328,8 +401,9 @@ private fun DownloadsTab(onOpenDetails: (String) -> Unit) {
                                 DownloadState.FAILED -> {
                                     TextButton(
                                         onClick = {
-                                            MockCatalogRepository.retryDownload(item.id)
-                                            downloads = MockCatalogRepository.getDownloads()
+                                            scope.launch {
+                                                repository.retryDownload(item.id)
+                                            }
                                         },
                                     ) {
                                         Text("Retry")
@@ -338,7 +412,8 @@ private fun DownloadsTab(onOpenDetails: (String) -> Unit) {
                                 DownloadState.COMPLETED -> {
                                     TextButton(
                                         onClick = {
-                                            onOpenDetails(item.mediaId)
+                                            val playTarget = item.localFilePath ?: item.mediaId
+                                            onPlayMedia(playTarget)
                                         },
                                     ) {
                                         Text("Play")
@@ -351,8 +426,9 @@ private fun DownloadsTab(onOpenDetails: (String) -> Unit) {
 
                             TextButton(
                                 onClick = {
-                                    MockCatalogRepository.removeDownload(item.id)
-                                    downloads = MockCatalogRepository.getDownloads()
+                                    scope.launch {
+                                        repository.deleteDownload(item.id)
+                                    }
                                 },
                             ) {
                                 Text("Delete")

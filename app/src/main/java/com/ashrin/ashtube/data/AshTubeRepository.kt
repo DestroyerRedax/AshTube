@@ -2,6 +2,10 @@ package com.ashrin.ashtube.data
 
 import android.content.Context
 import android.net.Uri
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.ashrin.ashtube.data.local.AshTubeDatabase
 import com.ashrin.ashtube.data.local.LocalMediaManager
 import com.ashrin.ashtube.data.local.entities.DownloadEntity
@@ -9,6 +13,7 @@ import com.ashrin.ashtube.data.local.entities.FavoriteEntity
 import com.ashrin.ashtube.data.local.entities.HistoryEntity
 import com.ashrin.ashtube.data.local.entities.LocalMediaEntity
 import com.ashrin.ashtube.data.local.preferences.AppPreferences
+import com.ashrin.ashtube.download.DownloadWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -119,6 +124,7 @@ class AshTubeRepository private constructor(context: Context) {
         mediaId: String,
         title: String,
         quality: String = "1080p",
+        streamUrl: String = "",
     ): String {
         val downloadId = "dl-${System.currentTimeMillis()}"
         val entity = DownloadEntity(
@@ -133,6 +139,25 @@ class AshTubeRepository private constructor(context: Context) {
         )
         database.downloadDao().insertOrUpdate(entity)
         MockCatalogRepository.enqueueDownload(mediaId, quality)
+
+        val workRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
+            .setInputData(
+                workDataOf(
+                    DownloadWorker.KEY_DOWNLOAD_ID to downloadId,
+                    DownloadWorker.KEY_MEDIA_ID to mediaId,
+                    DownloadWorker.KEY_TITLE to title,
+                    DownloadWorker.KEY_QUALITY to quality,
+                    DownloadWorker.KEY_STREAM_URL to streamUrl,
+                ),
+            )
+            .build()
+
+        WorkManager.getInstance(appContext).enqueueUniqueWork(
+            downloadId,
+            ExistingWorkPolicy.REPLACE,
+            workRequest,
+        )
+
         return downloadId
     }
 

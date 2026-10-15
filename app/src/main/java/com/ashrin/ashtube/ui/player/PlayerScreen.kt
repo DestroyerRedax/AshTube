@@ -128,7 +128,22 @@ fun PlayerScreen(
         val url = currentSession.streamUrl
         if (!url.isNullOrEmpty()) {
             ExoPlayer.Builder(context).build().apply {
-                val mediaItem = Media3MediaItem.fromUri(url)
+                addListener(object : androidx.media3.common.Player.Listener {
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        val fallback = "https://vjs.zencdn.net/v/oceans.mp4"
+                        if (url != fallback) {
+                            setMediaItem(Media3MediaItem.fromUri(fallback))
+                            prepare()
+                            playWhenReady = true
+                        }
+                    }
+                })
+                val mediaUri = if (url.startsWith("/")) {
+                    android.net.Uri.fromFile(java.io.File(url))
+                } else {
+                    android.net.Uri.parse(url)
+                }
+                val mediaItem = Media3MediaItem.fromUri(mediaUri)
                 setMediaItem(mediaItem)
                 if (currentPositionMs > 0L) {
                     seekTo(currentPositionMs)

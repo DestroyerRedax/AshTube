@@ -79,6 +79,7 @@ data class DownloadItem(
     val totalBytes: Long = 850_000_000L,
     val state: DownloadState = DownloadState.QUEUED,
     val error: String? = null,
+    val localFilePath: String? = null,
 )
 
 data class LocalVideoItem(
@@ -459,17 +460,19 @@ object MockCatalogRepository {
 
     fun createPlaybackSession(mediaId: String, episodeNumber: Int? = null): PlaybackSession? {
         val local = localVideos[mediaId]
-        if (local != null || mediaId.startsWith("content://") || mediaId.startsWith("file://")) {
-            val title = local?.displayName ?: "Local Video"
+        if (local != null || mediaId.startsWith("content://") || mediaId.startsWith("file://") || mediaId.startsWith("/")) {
+            val title = local?.displayName ?: if (mediaId.startsWith("/")) java.io.File(mediaId).name else "Local Video"
             val duration = if (local != null && local.durationMs > 0) local.durationMs else 7200000L
             val startPos = getProgress(mediaId)
             recordProgress(mediaId, startPos, duration)
+            val streamUri = local?.uri ?: mediaId
             return PlaybackSession(
                 mediaId = mediaId,
                 title = title,
-                type = "Local Video",
+                type = "Downloaded Video",
                 durationMs = duration,
                 startPositionMs = startPos,
+                streamUrl = streamUri,
                 availableQualities = listOf("Original"),
                 availableSubtitles = listOf(
                     SubtitleTrack("sub-none", "None", "Off"),
@@ -499,6 +502,7 @@ object MockCatalogRepository {
             episodeNumber = episode?.episode,
             durationMs = 7200000L,
             startPositionMs = startPos,
+            streamUrl = "https://vjs.zencdn.net/v/oceans.mp4",
             availableQualities = details.availableQualities,
         )
     }
