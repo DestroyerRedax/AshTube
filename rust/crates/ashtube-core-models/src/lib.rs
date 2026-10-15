@@ -6,8 +6,26 @@ pub enum MediaKind {
     Series,
     Anime,
     Kids,
+    Adult,
     Other,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AdultAccessError {
+    AgeNotConfirmed,
+    RestrictedOrDisabled,
+}
+
+impl fmt::Display for AdultAccessError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AgeNotConfirmed => write!(formatter, "Adult age confirmation is required."),
+            Self::RestrictedOrDisabled => write!(formatter, "Adult content is restricted or disabled."),
+        }
+    }
+}
+
+impl std::error::Error for AdultAccessError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatalogItem {
@@ -72,6 +90,7 @@ pub enum CoreError {
     InvalidRequest(String),
     ProviderDisabled,
     UnauthorizedSource,
+    AdultAccessRestricted(AdultAccessError),
 }
 
 impl fmt::Display for CoreError {
@@ -81,6 +100,7 @@ impl fmt::Display for CoreError {
             Self::InvalidRequest(message) => write!(formatter, "Invalid request: {message}"),
             Self::ProviderDisabled => write!(formatter, "This provider is disabled."),
             Self::UnauthorizedSource => write!(formatter, "This source is not authorized."),
+            Self::AdultAccessRestricted(error) => write!(formatter, "Adult access error: {error}"),
         }
     }
 }

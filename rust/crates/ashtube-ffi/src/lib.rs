@@ -26,6 +26,14 @@ impl AshTubeCore {
         self.provider.playback_options(media_id)
     }
 
+    pub fn adult_home(
+        &self,
+        confirmed_adult: bool,
+        page: u32,
+    ) -> Result<Page<CatalogItem>, CoreError> {
+        self.provider.adult_home(confirmed_adult, page)
+    }
+
     pub fn create_download_plan(
         &self,
         selection: DownloadSelection,
@@ -55,5 +63,13 @@ mod tests {
         let options = core.playback_options("mock-series-1").unwrap();
         assert_eq!(options.qualities, vec!["Auto", "1080p", "720p"]);
         assert_eq!(options.subtitles.len(), 1);
+    }
+
+    #[test]
+    fn facade_protects_adult_content() {
+        let core = AshTubeCore::default();
+        assert!(core.adult_home(false, 1).is_err());
+        let adult = core.adult_home(true, 1).unwrap();
+        assert_eq!(adult.items.len(), 2);
     }
 }

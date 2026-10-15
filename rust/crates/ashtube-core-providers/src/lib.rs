@@ -5,6 +5,7 @@ pub trait CatalogProvider {
     fn search(&self, query: &str, page: u32) -> Result<Page<CatalogItem>, CoreError>;
     fn details(&self, media_id: &str) -> Result<MediaDetails, CoreError>;
     fn playback_options(&self, media_id: &str) -> Result<PlaybackOptions, CoreError>;
+    fn adult_home(&self, confirmed_adult: bool, page: u32) -> Result<Page<CatalogItem>, CoreError>;
 }
 
 /// A local-only provider for wiring and UI tests. It has no network access,
@@ -42,9 +43,31 @@ impl MockCatalogProvider {
         ]
     }
 
+    fn adult_catalogue() -> Vec<CatalogItem> {
+        vec![
+            CatalogItem {
+                id: "mock-adult-1".into(),
+                title: "Midnight Noir".into(),
+                kind: MediaKind::Adult,
+                year: Some(2026),
+                summary: "A local mock mature drama used during development.".into(),
+                poster_url: None,
+            },
+            CatalogItem {
+                id: "mock-adult-2".into(),
+                title: "Velvet Shadow".into(),
+                kind: MediaKind::Adult,
+                year: Some(2025),
+                summary: "A local mock adult series used during development.".into(),
+                poster_url: None,
+            },
+        ]
+    }
+
     fn find(media_id: &str) -> Result<CatalogItem, CoreError> {
         Self::catalogue()
             .into_iter()
+            .chain(Self::adult_catalogue())
             .find(|item| item.id == media_id)
             .ok_or(CoreError::NotFound)
     }
@@ -57,6 +80,19 @@ impl CatalogProvider for MockCatalogProvider {
         }
         Ok(Page {
             items: Self::catalogue(),
+            page,
+            has_next_page: false,
+        })
+    }
+
+    fn adult_home(&self, confirmed_adult: bool, page: u32) -> Result<Page<CatalogItem>, CoreError> {
+        if !confirmed_adult {
+            return Err(CoreError::AdultAccessRestricted(
+                ashtube_core_models::AdultAccessError::AgeNotConfirmed,
+            ));
+        }
+        Ok(Page {
+            items: Self::adult_catalogue(),
             page,
             has_next_page: false,
         })
@@ -115,11 +151,32 @@ impl CatalogProvider for MockCatalogProvider {
 #[cfg(test)]
 mod tests {
     use super::{CatalogProvider, MockCatalogProvider};
+    use ashtube_core_models::{AdultAccessError, CoreError};
 
     #[test]
     fn search_is_case_insensitive() {
         let result = MockCatalogProvider.search("SIGNAL", 1).unwrap();
         assert_eq!(result.items.len(), 1);
         assert_eq!(result.items[0].title, "Signal Harbor");
+    }
+
+    #[test]
+    fn unconfirmed_adult_access_is_rejected() {
+        let error = MockCatalogProvider.adult_home(false, 1).unwrap_err();
+        assert_eq!(
+            error,
+            CoreError::AdultAccessRestricted(AdultAccessError::AgeNotConfirmed)
+        );
+    }
+
+    #[test]
+    fn confirmed_adult_access_returns_isolated_catalogue() {
+        let result = MockCatalogProvider.adult_home(true, 1).unwrap();
+        assert_eq!(result.items.len(), 2);
+        assert_eq!(result.items[0].title, "Midnight Noir");
+
+        // General home feed must never contain adult items
+        let home = MockCatalogProvider.home("trending", 1).unwrap();
+        assert!(home.items.iter().all(|item| item.id != "mock-adult-1"));
     }
 }

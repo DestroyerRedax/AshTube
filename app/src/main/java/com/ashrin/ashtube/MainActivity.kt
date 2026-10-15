@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.ashrin.ashtube.ui.adult.AdultScreen
 import com.ashrin.ashtube.ui.details.DetailScreen
 import com.ashrin.ashtube.ui.home.HomeScreen
 import com.ashrin.ashtube.ui.home.SearchScreen
@@ -47,6 +48,7 @@ class MainActivity : ComponentActivity() {
 private fun AshTubeApp() {
     var noticeAccepted by rememberSaveable { mutableStateOf(false) }
     var showingSearch by rememberSaveable { mutableStateOf(false) }
+    var showingAdultSection by rememberSaveable { mutableStateOf(false) }
     var selectedMediaId by rememberSaveable { mutableStateOf<String?>(null) }
 
     when {
@@ -55,12 +57,17 @@ private fun AshTubeApp() {
             mediaId = selectedMediaId!!,
             onBack = { selectedMediaId = null },
         )
+        showingAdultSection -> AdultScreen(
+            onBack = { showingAdultSection = false },
+            onOpenDetails = { id -> selectedMediaId = id },
+        )
         showingSearch -> SearchScreen(
             onBack = { showingSearch = false },
             onOpenDetails = { id -> selectedMediaId = id },
         )
         else -> HomeScreen(
             onSearch = { showingSearch = true },
+            onOpenAdult = { showingAdultSection = true },
             onOpenDetails = { id -> selectedMediaId = id },
         )
     }

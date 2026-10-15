@@ -68,10 +68,31 @@ object MockCatalogRepository {
         MediaItem("mock-kids-3", "Little Lanterns", "Kids", "2025"),
     )
 
-    // In-memory sets to model favourites and history contracts
+    // Strictly isolated adult catalog (18+)
+    private val adultFeatured = listOf(
+        MediaItem("mock-adult-1", "Midnight Noir", "Adult (18+)", "2026"),
+        MediaItem("mock-adult-2", "Velvet Shadow", "Adult (18+)", "2025"),
+    )
+
+    private val adultSeries = listOf(
+        MediaItem("mock-adult-3", "Neon Dreams", "Adult (18+)", "2026"),
+        MediaItem("mock-adult-4", "Rouge City", "Adult (18+)", "2025"),
+    )
+
+    // In-memory sets to model favourites, history, and adult access preference
     private val favoriteIds = mutableSetOf<String>()
     private val history = mutableListOf<HistoryEntry>()
+    private var isAdultAccessConfirmed = false
 
+    fun isAdultAccessEnabled(): Boolean = isAdultAccessConfirmed
+
+    fun setAdultAccessEnabled(enabled: Boolean) {
+        isAdultAccessConfirmed = enabled
+    }
+
+    /**
+     * General Home sections. Strictly excludes Adults (18+) content.
+     */
     fun homeSections(): List<HomeSection> {
         val sections = mutableListOf(
             HomeSection("Trending now", trending),
@@ -89,21 +110,56 @@ object MockCatalogRepository {
         return sections
     }
 
-    fun allItems(): List<MediaItem> =
+    /**
+     * Isolated Adults (18+) sections. Returns content only if adult access is confirmed.
+     */
+    fun adultSections(): List<HomeSection> {
+        if (!isAdultAccessConfirmed) return emptyList()
+        return listOf(
+            HomeSection("Adult Spotlight (18+)", adultFeatured),
+            HomeSection("Mature Series (18+)", adultSeries),
+        )
+    }
+
+    fun allGeneralItems(): List<MediaItem> =
         listOf(trending, movies, series, anime, kids).flatten().distinctBy(MediaItem::id)
 
-    fun findItem(id: String): MediaItem? =
-        allItems().find { it.id == id }
+    fun allAdultItems(): List<MediaItem> =
+        if (isAdultAccessConfirmed) listOf(adultFeatured, adultSeries).flatten().distinctBy(MediaItem::id)
+        else emptyList()
 
+    fun findItem(id: String): MediaItem? {
+        val general = allGeneralItems().find { it.id == id }
+        if (general != null) return general
+
+        if (isAdultAccessConfirmed) {
+            return listOf(adultFeatured, adultSeries).flatten().find { it.id == id }
+        }
+        return null
+    }
+
+    /**
+     * General search. Strictly filters only general catalogue items.
+     */
     fun search(query: String): List<MediaItem> {
         val normalized = query.trim()
         if (normalized.isEmpty()) return emptyList()
-        return allItems().filter { item -> item.title.contains(normalized, ignoreCase = true) }
+        return allGeneralItems().filter { item -> item.title.contains(normalized, ignoreCase = true) }
+    }
+
+    /**
+     * Isolated search for Adults (18+) section.
+     */
+    fun searchAdult(query: String): List<MediaItem> {
+        if (!isAdultAccessConfirmed) return emptyList()
+        val normalized = query.trim()
+        if (normalized.isEmpty()) return emptyList()
+        return allAdultItems().filter { item -> item.title.contains(normalized, ignoreCase = true) }
     }
 
     fun getDetails(id: String): MediaDetails? {
         val item = findItem(id) ?: return null
-        val episodes = if (item.type == "Series" || item.type == "Anime") {
+        val episodes = if (item.type == "Series" || item.type == "Anime" || item.title == "Neon Dreams") {
             listOf(
                 Episode(1, 1, "First Light"),
                 Episode(1, 2, "High Tide"),

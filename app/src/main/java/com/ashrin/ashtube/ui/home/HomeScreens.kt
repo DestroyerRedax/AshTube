@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,6 +36,7 @@ import com.ashrin.ashtube.data.MockCatalogRepository
 @Composable
 fun HomeScreen(
     onSearch: () -> Unit,
+    onOpenAdult: () -> Unit,
     onOpenDetails: (String) -> Unit,
 ) {
     val sections = MockCatalogRepository.homeSections()
@@ -46,10 +48,16 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("AshTube", style = MaterialTheme.typography.headlineMedium)
-                TextButton(onClick = onSearch) {
-                    Text("Search")
+                Row {
+                    TextButton(onClick = onSearch) {
+                        Text("Search")
+                    }
+                    TextButton(onClick = onOpenAdult) {
+                        Text("18+")
+                    }
                 }
             }
             LazyColumn(

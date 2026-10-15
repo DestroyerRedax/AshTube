@@ -180,7 +180,31 @@ The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The 
 
 ### Outcome
 
-AshTube now has working title-detail navigation, interactive mock playback and download triggers, and an in-memory favourites and watch-history state contract. The next step is Phase 2, Step 3: adding the Adults (18+) opt-in gate and separated section, followed by local Room persistence.
+AshTube now has working title-detail navigation, interactive mock playback and download triggers, and an in-memory favourites and watch-history state contract.
+
+## Phase 2, Step 3 — Add Adults (18+) opt-in gate and isolated section
+
+**Status:** Complete, pending toolchain build verification  
+**Date:** 2026-10-15
+
+### What was done
+
+1. Added `MediaKind::Adult`, `AdultAccessError`, and `CoreError::AdultAccessRestricted` to `ashtube-core-models`.
+2. Added `adult_home(confirmed_adult, page)` to `CatalogProvider` trait in `ashtube-core-providers` and implemented mock adult items (`Midnight Noir`, `Velvet Shadow`). Added unit tests asserting that unconfirmed adult access returns an explicit error and that general feeds never contain adult items.
+3. Added `adult_home` to the `AshTubeCore` FFI facade in `ashtube-ffi` with unit test verification.
+4. Updated `MockCatalogRepository` in Android with isolated adult items (`adultFeatured`, `adultSeries`), gate state flags (`isAdultAccessEnabled`, `setAdultAccessEnabled`), and isolated `adultSections()` and `searchAdult()` methods. General `homeSections()`, `allItems()`, and `search()` strictly exclude all adult items.
+5. Created `AdultScreen` in `com.ashrin.ashtube.ui.adult`:
+   - Gated state (`AdultGateScreen`): displays the mandatory 18+ age verification notice and requires explicit confirmation.
+   - Active state (`AdultFeedScreen`): displays isolated adult rows, a dedicated adult search bar, and a prominent "Lock & Exit" revocation control that disables access and immediately navigates away.
+6. Wired `HomeScreen` top bar with a dedicated "18+" entry point and updated `MainActivity` state routing to display `AdultScreen`.
+
+### Verification status
+
+The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The codebase is structurally complete and ready for compilation once build tools are available.
+
+### Outcome
+
+AshTube now has a fully gated, strictly isolated Adults (18+) area compliant with the project design plan. The next UI step is Phase 2, Step 4: Settings screen and offline messaging, followed by Room persistence.
 
 ### Scope still excluded
 
