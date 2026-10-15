@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   rust-core:
@@ -36,7 +37,7 @@ jobs:
           cargo test --workspace --verbose
 
   android-build:
-    name: Android Debug APK Build
+    name: Android Debug & Release APK Build
     runs-on: ubuntu-latest
     needs: [rust-core]
     steps:
@@ -52,20 +53,14 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.7'
+
+      - name: Accept Android SDK licenses
+        run: |
+          yes | sdkmanager --licenses || true
 
       - name: Build Debug & Release APKs
         run: |

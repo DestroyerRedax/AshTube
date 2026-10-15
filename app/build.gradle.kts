@@ -30,11 +30,7 @@ android {
                 keyPassword = System.getenv("ASHTUBE_RELEASE_KEY_PASSWORD")
             } else {
                 // Fallback to debug certificate for automated test/CI builds when release secret is omitted
-                val debugKeystore = getByName("debug")
-                storeFile = debugKeystore.storeFile
-                storePassword = debugKeystore.storePassword
-                keyAlias = debugKeystore.keyAlias
-                keyPassword = debugKeystore.keyPassword
+                initWith(getByName("debug"))
             }
         }
     }
