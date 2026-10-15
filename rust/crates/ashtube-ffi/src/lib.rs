@@ -71,6 +71,7 @@ impl AshTubeCore {
 #[cfg(test)]
 mod tests {
     use super::AshTubeCore;
+    use ashtube_core_models::{FavoriteItem, HistoryItem};
 
     #[test]
     fn facade_returns_mock_home_content() {
