@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ashrin.ashtube.data.DownloadItem
+import com.ashrin.ashtube.data.DownloadState
 import com.ashrin.ashtube.data.HistoryEntry
 import com.ashrin.ashtube.data.MediaItem
 import com.ashrin.ashtube.data.MockCatalogRepository
@@ -75,7 +76,7 @@ fun LibraryScreen(
             when (selectedTab) {
                 0 -> HistoryTab(onOpenDetails = onOpenDetails)
                 1 -> FavouritesTab(onOpenDetails = onOpenDetails)
-                2 -> DownloadsTab()
+                2 -> DownloadsTab(onOpenDetails = onOpenDetails)
             }
         }
     }
@@ -232,7 +233,7 @@ private fun FavouritesTab(onOpenDetails: (String) -> Unit) {
 }
 
 @Composable
-private fun DownloadsTab() {
+private fun DownloadsTab(onOpenDetails: (String) -> Unit) {
     var downloads by rememberSaveable { mutableStateOf(MockCatalogRepository.getDownloads()) }
 
     if (downloads.isEmpty()) {
@@ -263,12 +264,80 @@ private fun DownloadsTab() {
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                 )
+                                val downloadedMb = item.bytesDownloaded / (1024 * 1024)
+                                val totalMb = item.totalBytes / (1024 * 1024)
+                                val stateLabel = when (item.state) {
+                                    DownloadState.QUEUED -> "Queued"
+                                    DownloadState.DOWNLOADING -> "Downloading (${(item.progress * 100).toInt()}%)"
+                                    DownloadState.PAUSED -> "Paused"
+                                    DownloadState.COMPLETED -> "Completed (Offline)"
+                                    DownloadState.FAILED -> "Failed: ${item.error ?: "Network error"}"
+                                }
                                 Text(
-                                    text = "${item.quality} • ${item.status}",
+                                    text = "${item.quality} • $stateLabel • $downloadedMb MB / $totalMb MB",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (item.state == DownloadState.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        LinearProgressIndicator(
+                            progress = { item.progress },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            when (item.state) {
+                                DownloadState.DOWNLOADING -> {
+                                    TextButton(
+                                        onClick = {
+                                            MockCatalogRepository.pauseDownload(item.id)
+                                            downloads = MockCatalogRepository.getDownloads()
+                                        },
+                                    ) {
+                                        Text("Pause")
+                                    }
+                                }
+                                DownloadState.PAUSED -> {
+                                    TextButton(
+                                        onClick = {
+                                            MockCatalogRepository.resumeDownload(item.id)
+                                            downloads = MockCatalogRepository.getDownloads()
+                                        },
+                                    ) {
+                                        Text("Resume")
+                                    }
+                                }
+                                DownloadState.FAILED -> {
+                                    TextButton(
+                                        onClick = {
+                                            MockCatalogRepository.retryDownload(item.id)
+                                            downloads = MockCatalogRepository.getDownloads()
+                                        },
+                                    ) {
+                                        Text("Retry")
+                                    }
+                                }
+                                DownloadState.COMPLETED -> {
+                                    TextButton(
+                                        onClick = {
+                                            onOpenDetails(item.mediaId)
+                                        },
+                                    ) {
+                                        Text("Play")
+                                    }
+                                }
+                                DownloadState.QUEUED -> {}
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
                             TextButton(
                                 onClick = {
                                     MockCatalogRepository.removeDownload(item.id)
@@ -278,11 +347,6 @@ private fun DownloadsTab() {
                                 Text("Delete")
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(
-                            progress = { item.progress },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
                     }
                 }
             }

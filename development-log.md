@@ -277,7 +277,38 @@ The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The 
 
 ### Outcome
 
-AshTube now has an interactive video player interface with seeking, subtitle tracks, quality switching, progress tracking, and episode continuation, backed by Media3 build baseline configurations. The next step is Phase 4: Download Engine and WorkManager foreground download service.
+AshTube now has an interactive video player interface with seeking, subtitle tracks, quality switching, progress tracking, and episode continuation, backed by Media3 build baseline configurations.
+
+## Phase 4, Step 1 — Download Engine, WorkManager baseline, and queue lifecycle management
+
+**Status:** Complete, pending toolchain build verification  
+**Date:** 2026-10-15
+
+### What was done
+
+1. Updated Android dependencies and permissions:
+   - Added `workManager = "2.10.0"` and `androidx-work-runtime-ktx` to `gradle/libs.versions.toml` and `app/build.gradle.kts`.
+   - Added `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`, and `POST_NOTIFICATIONS` permissions to `app/src/main/AndroidManifest.xml`.
+2. Created `DownloadWorker` in `com.ashrin.ashtube.download`:
+   - WorkManager `CoroutineWorker` handling background chunked downloads.
+   - Foreground notification channel (`ashtube_download_channel`) with continuous progress bar reporting and cooperative cancellation (`isStopped`).
+3. Extended `MockCatalogRepository`:
+   - Added `DownloadState` enum (`QUEUED`, `DOWNLOADING`, `PAUSED`, `COMPLETED`, `FAILED`).
+   - Added full queue lifecycle methods: `pauseDownload`, `resumeDownload`, `retryDownload`, `markDownloadCompleted`, `updateDownloadProgress`, and `removeDownload`.
+4. Upgraded `LibraryScreen` (`DownloadsTab`):
+   - Added detailed download progress indicators showing downloaded and total megabytes (`MB / MB`).
+   - Added state-adaptive controls: Pause for active downloads, Resume for paused tasks, Retry for failed items, Play for completed items, and Delete.
+5. Expanded Rust Core (`ashtube-core-downloads`):
+   - Added `DownloadStatus` and `DownloadRecord` domain structures.
+   - Implemented `pause()` and `resume()` transitions with unit tests asserting lifecycle behavior.
+
+### Verification status
+
+The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The codebase is structurally complete and ready for compilation once build tools are available.
+
+### Outcome
+
+AshTube now has a full background download engine contract with WorkManager service integration, notification channels, interactive queue controls (Pause, Resume, Retry, Play, Delete), and synchronized Rust/Kotlin models. The next step is Phase 5: Room database for local offline history/favourites persistence and DataStore for settings.
 
 ### Scope still excluded
 

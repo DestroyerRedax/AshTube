@@ -60,13 +60,24 @@ data class HomeSection(
     val items: List<MediaItem>,
 )
 
+enum class DownloadState {
+    QUEUED,
+    DOWNLOADING,
+    PAUSED,
+    COMPLETED,
+    FAILED,
+}
+
 data class DownloadItem(
     val id: String,
     val mediaId: String,
     val title: String,
     val quality: String,
     val progress: Float,
-    val status: String,
+    val bytesDownloaded: Long = 0L,
+    val totalBytes: Long = 850_000_000L,
+    val state: DownloadState = DownloadState.QUEUED,
+    val error: String? = null,
 )
 
 /**
@@ -257,16 +268,67 @@ object MockCatalogRepository {
     fun enqueueDownload(mediaId: String, quality: String = "1080p") {
         val item = findItem(mediaId) ?: return
         if (downloads.any { it.mediaId == mediaId }) return
+        val id = "dl-${downloads.size + 1}"
         downloads.add(
             DownloadItem(
-                id = "dl-${downloads.size + 1}",
+                id = id,
                 mediaId = item.id,
                 title = item.title,
                 quality = quality,
-                progress = 1.0f,
-                status = "Downloaded (Mock)",
+                progress = 0.45f,
+                bytesDownloaded = 382_500_000L,
+                totalBytes = 850_000_000L,
+                state = DownloadState.DOWNLOADING,
             ),
         )
+    }
+
+    fun pauseDownload(id: String) {
+        val index = downloads.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val current = downloads[index]
+            downloads[index] = current.copy(state = DownloadState.PAUSED)
+        }
+    }
+
+    fun resumeDownload(id: String) {
+        val index = downloads.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val current = downloads[index]
+            downloads[index] = current.copy(state = DownloadState.DOWNLOADING)
+        }
+    }
+
+    fun retryDownload(id: String) {
+        val index = downloads.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val current = downloads[index]
+            downloads[index] = current.copy(state = DownloadState.DOWNLOADING, error = null)
+        }
+    }
+
+    fun markDownloadCompleted(id: String) {
+        val index = downloads.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val current = downloads[index]
+            downloads[index] = current.copy(
+                state = DownloadState.COMPLETED,
+                progress = 1.0f,
+                bytesDownloaded = current.totalBytes,
+            )
+        }
+    }
+
+    fun updateDownloadProgress(id: String, progress: Float, bytesDownloaded: Long) {
+        val index = downloads.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val current = downloads[index]
+            downloads[index] = current.copy(
+                progress = progress,
+                bytesDownloaded = bytesDownloaded,
+                state = if (progress >= 1.0f) DownloadState.COMPLETED else DownloadState.DOWNLOADING,
+            )
+        }
     }
 
     fun getDownloads(): List<DownloadItem> = downloads.toList()
