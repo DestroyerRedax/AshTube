@@ -144,6 +144,72 @@ fun DetailScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            if (!currentDetails.backdropUrl.isNullOrEmpty() || !item.posterUrl.isNullOrEmpty()) {
+                val imgUrl = currentDetails.backdropUrl ?: item.posterUrl
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                ) {
+                    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+                        coil.compose.AsyncImage(
+                            model = imgUrl,
+                            contentDescription = item.title,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .androidx.compose.foundation.background(
+                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                        colors = listOf(
+                                            androidx.compose.ui.graphics.Color.Transparent,
+                                            androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.8f),
+                                        ),
+                                        startY = 100f,
+                                    ),
+                                ),
+                        )
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Surface(
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                            ) {
+                                Text(
+                                    text = item.provider ?: "Unified Provider",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            if (item.rating != null) {
+                                Surface(
+                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                                    color = androidx.compose.ui.graphics.Color(0xFFE5A00D),
+                                ) {
+                                    Text(
+                                        text = item.rating,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = androidx.compose.ui.graphics.Color.Black,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.headlineMedium,
@@ -151,7 +217,7 @@ fun DetailScreen(
             )
 
             Text(
-                text = "Release Year: ${item.year}",
+                text = "Release Year: ${item.year}${if (currentDetails.genre != null) " • ${currentDetails.genre}" else ""}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

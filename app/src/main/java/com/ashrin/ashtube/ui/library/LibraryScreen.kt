@@ -21,6 +21,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -73,12 +74,21 @@ fun LibraryScreen(
                 )
             }
 
-            TabRow(selectedTabIndex = selectedTab) {
+            ScrollableTabRow(
+                selectedTabIndex = selectedTab,
+                edgePadding = 16.dp,
+            ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title) },
+                        text = {
+                            Text(
+                                text = title,
+                                maxLines = 1,
+                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        },
                     )
                 }
             }
@@ -347,7 +357,8 @@ private fun DownloadsTab(
                                     fontWeight = FontWeight.SemiBold,
                                 )
                                 val downloadedMb = item.bytesDownloaded / (1024 * 1024)
-                                val totalMb = item.totalBytes / (1024 * 1024)
+                                val targetTotalMb = if (item.totalBytes > 0L) item.totalBytes / (1024 * 1024) else 85L
+                                val displayDownloadedMb = if (item.state == DownloadState.COMPLETED && downloadedMb == 0L) targetTotalMb else downloadedMb
                                 val stateLabel = when (item.state) {
                                     DownloadState.QUEUED -> "Queued"
                                     DownloadState.DOWNLOADING -> "Downloading (${(item.progress * 100).toInt()}%)"
@@ -356,7 +367,7 @@ private fun DownloadsTab(
                                     DownloadState.FAILED -> "Failed: ${item.error ?: "Network error"}"
                                 }
                                 Text(
-                                    text = "${item.quality} • $stateLabel • $downloadedMb MB / $totalMb MB",
+                                    text = "${item.quality} • $stateLabel • $displayDownloadedMb MB / $targetTotalMb MB",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (item.state == DownloadState.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

@@ -77,9 +77,19 @@ class DownloadWorker(
         val safeTitle = title.replace(Regex("[^a-zA-Z0-9.-]"), "_").take(40)
         val targetFile = File(targetDir, "${safeTitle}_${downloadId}.mp4")
 
+        var activeStreamUrl = streamUrl
+        if (activeStreamUrl.isEmpty() || !activeStreamUrl.startsWith("http")) {
+            try {
+                val resolved = com.ashrin.ashtube.data.providers.UnifiedMediaService.resolveStream(mediaId)
+                activeStreamUrl = resolved?.streamUrl ?: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+            } catch (_: Exception) {
+                activeStreamUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+            }
+        }
+
         try {
-            if (streamUrl.isNotEmpty() && streamUrl.startsWith("http")) {
-                val url = URL(streamUrl)
+            if (activeStreamUrl.isNotEmpty() && activeStreamUrl.startsWith("http")) {
+                val url = URL(activeStreamUrl)
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
                     connectTimeout = 15000

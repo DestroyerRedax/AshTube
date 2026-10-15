@@ -224,8 +224,20 @@ object MovieBoxRemoteService {
                 val stype = sub.optInt("subjectType", 1)
                 val type = if (stype == 2) "Series" else "Movie"
                 val releaseDate = sub.optString("releaseDate")
-                val year = if (releaseDate.length >= 4) releaseDate.substring(0, 4) else "2026"
-                items.add(MediaItem(id = id, title = title, type = type, year = year))
+                val coverObj = sub.optJSONObject("cover")
+                val posterUrl = coverObj?.optString("url")?.ifEmpty { null } ?: sub.optString("cover").ifEmpty { null }
+                val rating = sub.optDouble("imdbRating", 0.0).let { if (it > 0) "★ %.1f".format(it) else null }
+                items.add(
+                    MediaItem(
+                        id = id,
+                        title = title,
+                        type = type,
+                        year = year,
+                        posterUrl = posterUrl,
+                        provider = "MovieBox",
+                        rating = rating,
+                    ),
+                )
             }
         }
         items.distinctBy { it.id }
@@ -244,6 +256,12 @@ object MovieBoxRemoteService {
         val releaseDate = data.optString("releaseDate")
         val year = if (releaseDate.length >= 4) releaseDate.substring(0, 4) else "2026"
         val summary = data.optString("description").ifEmpty { "No overview available for this title." }
+        val coverObj = data.optJSONObject("cover")
+        val posterUrl = coverObj?.optString("url")?.ifEmpty { null } ?: data.optString("cover").ifEmpty { null }
+        val bannerObj = data.optJSONObject("banner") ?: data.optJSONObject("cover")
+        val backdropUrl = bannerObj?.optString("url")?.ifEmpty { null } ?: data.optString("banner").ifEmpty { null }
+        val rating = data.optDouble("imdbRating", 0.0).let { if (it > 0) "★ %.1f".format(it) else null }
+        val genre = data.optString("genre").ifEmpty { null }
 
         val episodes = mutableListOf<Episode>()
         if (stype == 2) {
@@ -263,10 +281,20 @@ object MovieBoxRemoteService {
         }
 
         MediaDetails(
-            item = MediaItem(id = subjectId, title = title, type = type, year = year),
+            item = MediaItem(
+                id = subjectId,
+                title = title,
+                type = type,
+                year = year,
+                posterUrl = posterUrl,
+                provider = "MovieBox",
+                rating = rating,
+            ),
             summary = summary,
             episodes = episodes,
             availableQualities = listOf("Auto", "1080p", "720p", "480p"),
+            backdropUrl = backdropUrl,
+            genre = genre,
         )
     }
 
@@ -449,7 +477,20 @@ object MovieBoxRemoteService {
                 val type = if (stype == 2) "Series" else "Movie"
                 val releaseDate = sub.optString("releaseDate")
                 val year = if (releaseDate.length >= 4) releaseDate.substring(0, 4) else "2026"
-                mediaItems.add(MediaItem(id = id, title = title, type = type, year = year))
+                val coverObj = sub.optJSONObject("cover")
+                val posterUrl = coverObj?.optString("url")?.ifEmpty { null } ?: sub.optString("cover").ifEmpty { null }
+                val rating = sub.optDouble("imdbRating", 0.0).let { if (it > 0) "★ %.1f".format(it) else null }
+                mediaItems.add(
+                    MediaItem(
+                        id = id,
+                        title = title,
+                        type = type,
+                        year = year,
+                        posterUrl = posterUrl,
+                        provider = "MovieBox",
+                        rating = rating,
+                    ),
+                )
             }
 
             if (mediaItems.isNotEmpty()) {

@@ -57,26 +57,25 @@ fun PlayerScreen(
     val context = LocalContext.current
     var activeEpisodeNumber by rememberSaveable(mediaId) { mutableStateOf(initialEpisodeNumber) }
     var session by remember(mediaId, activeEpisodeNumber) {
-        mutableStateOf(MockCatalogRepository.createPlaybackSession(mediaId, activeEpisodeNumber))
+        mutableStateOf<PlaybackSession?>(null)
     }
     var isLoadingSession by remember(mediaId, activeEpisodeNumber) {
-        mutableStateOf(session == null || session?.streamUrl == null)
+        mutableStateOf(true)
     }
 
     LaunchedEffect(mediaId, activeEpisodeNumber) {
+        isLoadingSession = true
         try {
             val liveSession = MockCatalogRepository.createPlaybackSessionLive(mediaId, activeEpisodeNumber)
-            if (liveSession != null) {
-                session = liveSession
-            }
+            session = liveSession ?: MockCatalogRepository.createPlaybackSession(mediaId, activeEpisodeNumber)
         } catch (_: Exception) {
-            // Keep local mock session
+            session = MockCatalogRepository.createPlaybackSession(mediaId, activeEpisodeNumber)
         } finally {
             isLoadingSession = false
         }
     }
 
-    if (session == null && isLoadingSession) {
+    if (isLoadingSession) {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -87,7 +86,7 @@ fun PlayerScreen(
             ) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Resolving MovieBox media stream...", style = MaterialTheme.typography.titleMedium)
+                Text("Resolving multi-provider stream (MovieBox, mov-cli, ani-cli)...", style = MaterialTheme.typography.titleMedium)
             }
         }
         return
@@ -203,8 +202,13 @@ fun PlayerScreen(
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
-                        player = exoPlayer
+                        this.player = exoPlayer
                         useController = false
+                    }
+                },
+                update = { view ->
+                    if (view.player != exoPlayer) {
+                        view.player = exoPlayer
                     }
                 },
                 modifier = Modifier.fillMaxSize(),

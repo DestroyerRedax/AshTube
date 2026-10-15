@@ -5,6 +5,9 @@ data class MediaItem(
     val title: String,
     val type: String,
     val year: String,
+    val posterUrl: String? = null,
+    val provider: String? = null,
+    val rating: String? = null,
 )
 
 data class Episode(
@@ -18,6 +21,8 @@ data class MediaDetails(
     val summary: String,
     val episodes: List<Episode> = emptyList(),
     val availableQualities: List<String> = listOf("Auto", "1080p", "720p", "480p"),
+    val backdropUrl: String? = null,
+    val genre: String? = null,
 )
 
 data class SubtitleTrack(
@@ -233,17 +238,18 @@ object MockCatalogRepository {
     }
 
     /**
-     * Live search executing against the MovieBox-TUI backend with automatic fallback to local catalogue.
+     * Unified multi-provider search executing across all 6 engines:
+     * MovieBox-TUI, mov-cli, ani-cli, kunai, freeflix-cli, mov-watch.
      */
     suspend fun searchLive(query: String): List<MediaItem> {
         val normalized = query.trim()
         if (normalized.isEmpty()) return emptyList()
-        val liveResults = com.ashrin.ashtube.data.remote.MovieBoxRemoteService.search(normalized)
-        if (liveResults.isNotEmpty()) {
-            for (item in liveResults) {
+        val unifiedResults = com.ashrin.ashtube.data.providers.UnifiedMediaService.searchAll(normalized)
+        if (unifiedResults.isNotEmpty()) {
+            for (item in unifiedResults) {
                 remoteItemsMap[item.id] = item
             }
-            return liveResults
+            return unifiedResults
         }
         return search(normalized)
     }
@@ -283,44 +289,44 @@ object MockCatalogRepository {
     }
 
     /**
-     * Live details fetch resolving full overview, casts, and episodes from the MovieBox-TUI backend.
+     * Live details fetch resolving full overview, casts, and episodes across all providers.
      */
     suspend fun getDetailsLive(id: String): MediaDetails? {
         val cached = remoteDetailsMap[id]
         if (cached != null && cached.episodes.isNotEmpty()) return cached
 
-        val remote = com.ashrin.ashtube.data.remote.MovieBoxRemoteService.getDetails(id)
-        if (remote != null) {
-            remoteItemsMap[remote.item.id] = remote.item
-            remoteDetailsMap[remote.item.id] = remote
-            return remote
+        val unified = com.ashrin.ashtube.data.providers.UnifiedMediaService.getDetails(id)
+        if (unified != null) {
+            remoteItemsMap[unified.item.id] = unified.item
+            remoteDetailsMap[unified.item.id] = unified
+            return unified
         }
         return getDetails(id)
     }
 
     /**
-     * Live playback session creator resolving direct streaming URLs from MovieBox-TUI backend.
+     * Live playback session creator resolving direct streaming URLs across all providers with auto-fallback.
      */
     suspend fun createPlaybackSessionLive(mediaId: String, episodeNumber: Int? = null): PlaybackSession? {
         val local = localVideos[mediaId]
-        if (local != null || mediaId.startsWith("content://") || mediaId.startsWith("file://")) {
+        if (local != null || mediaId.startsWith("content://") || mediaId.startsWith("file://") || mediaId.startsWith("/")) {
             return createPlaybackSession(mediaId, episodeNumber)
         }
 
-        val remoteSession = com.ashrin.ashtube.data.remote.MovieBoxRemoteService.getPlaybackSession(mediaId, episodeNumber)
-        if (remoteSession != null) {
-            recordProgress(mediaId, remoteSession.startPositionMs, remoteSession.durationMs)
-            return remoteSession
+        val session = com.ashrin.ashtube.data.providers.UnifiedMediaService.resolveStream(mediaId, episodeNumber)
+        if (session != null) {
+            recordProgress(mediaId, session.startPositionMs, session.durationMs)
+            return session
         }
 
         return createPlaybackSession(mediaId, episodeNumber)
     }
 
     /**
-     * Fetch live trending and category rows from the MovieBox-TUI backend.
+     * Fetch live trending and category rows aggregated from all integrated providers.
      */
     suspend fun fetchLiveHomeSections(): List<HomeSection> {
-        val live = com.ashrin.ashtube.data.remote.MovieBoxRemoteService.getHomepageSections()
+        val live = com.ashrin.ashtube.data.providers.UnifiedMediaService.getUnifiedHomeSections()
         if (live.isNotEmpty()) {
             for (sec in live) {
                 for (item in sec.items) {

@@ -120,39 +120,127 @@ private fun FeedRow(
             text = section.title,
             modifier = Modifier.padding(horizontal = 20.dp),
             style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         LazyRow(
             contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             items(section.items, key = MediaItem::id) { item ->
-                MediaCard(item = item, onClick = { onItemClick(item) })
+                PosterMediaCard(item = item, onClick = { onItemClick(item) })
             }
         }
     }
 }
 
 @Composable
-private fun MediaCard(
+private fun PosterMediaCard(
     item: MediaItem,
     onClick: () -> Unit,
 ) {
     Card(
         modifier = Modifier
-            .width(156.dp)
-            .height(128.dp)
+            .width(140.dp)
+            .height(210.dp)
             .clickable { onClick() },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(item.type, style = MaterialTheme.typography.labelMedium)
-            Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(item.year, style = MaterialTheme.typography.bodySmall)
+        androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+            if (!item.posterUrl.isNullOrEmpty()) {
+                coil.compose.AsyncImage(
+                    model = item.posterUrl,
+                    contentDescription = item.title,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .androidx.compose.foundation.background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = item.type,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // Scrim gradient for readability
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .androidx.compose.foundation.background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                androidx.compose.ui.graphics.Color.Transparent,
+                                androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.85f),
+                            ),
+                            startY = 180f,
+                        ),
+                    ),
+            )
+
+            // Top metadata badges
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                val badgeText = item.provider ?: item.type
+                Surface(
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                    color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.65f),
+                ) {
+                    Text(
+                        text = badgeText,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = androidx.compose.ui.graphics.Color.White,
+                    )
+                }
+
+                if (item.rating != null) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                        color = androidx.compose.ui.graphics.Color(0xFFE5A00D).copy(alpha = 0.9f),
+                    ) {
+                        Text(
+                            text = item.rating,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = androidx.compose.ui.graphics.Color.Black,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+
+            // Bottom title and year
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomStart)
+                    .padding(10.dp),
+            ) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = androidx.compose.ui.graphics.Color.White,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${item.type} • ${item.year}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.75f),
+                )
+            }
         }
     }
 }
@@ -175,7 +263,7 @@ fun SearchScreen(
         }
         // Show immediate local results first
         results = MockCatalogRepository.search(trimmed)
-        delay(350L) // Debounce typing
+        delay(300L) // Debounce typing
         isSearching = true
         try {
             val liveResults = MockCatalogRepository.searchLive(trimmed)
@@ -216,25 +304,117 @@ fun SearchScreen(
                     Text("Back")
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("Search titles (movies, series, anime)") },
+                label = { Text("Search MovieBox, mov-cli, ani-cli, FreeFlix...") },
             )
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             if (query.isBlank()) {
-                Text("Type a title to search the live MovieBox and local catalogue.")
+                Text(
+                    text = "Search across all 6 engines: movies, web series, and anime with unified results.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             } else if (results.isEmpty() && !isSearching) {
-                Text("No results found for \"$query\".")
+                Text("No results found across providers for \"$query\".")
             } else if (results.isEmpty() && isSearching) {
-                Text("Searching MovieBox database...")
+                Text("Searching MovieBox, mov-cli, ani-cli, and FreeFlix...")
             } else {
+                Text(
+                    text = "${results.size} unified results found",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(10.dp))
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(results, key = MediaItem::id) { item ->
-                        MediaCard(item = item, onClick = { onOpenDetails(item.id) })
+                        SearchResultCard(item = item, onClick = { onOpenDetails(item.id) })
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultCard(
+    item: MediaItem,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Card(
+                modifier = Modifier
+                    .width(64.dp)
+                    .height(96.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+            ) {
+                if (!item.posterUrl.isNullOrEmpty()) {
+                    coil.compose.AsyncImage(
+                        model = item.posterUrl,
+                        contentDescription = item.title,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(item.type.take(1), style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${item.type} • ${item.year}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                    ) {
+                        Text(
+                            text = item.provider ?: "Unified",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
+                    if (item.rating != null) {
+                        Text(
+                            text = item.rating,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = androidx.compose.ui.graphics.Color(0xFFE5A00D),
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
             }
