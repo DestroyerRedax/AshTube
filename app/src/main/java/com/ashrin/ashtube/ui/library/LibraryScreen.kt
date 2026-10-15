@@ -41,12 +41,22 @@ import com.ashrin.ashtube.data.HistoryEntry
 import com.ashrin.ashtube.data.MediaItem
 import com.ashrin.ashtube.data.MockCatalogRepository
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.ashrin.ashtube.data.AshTubeRepository
+import kotlinx.coroutines.launch
+
 @Composable
 fun LibraryScreen(
     onOpenDetails: (String) -> Unit,
+    onPlayMedia: (String) -> Unit = {},
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    val tabs = listOf("History", "Favourites", "Downloads")
+    val tabs = listOf("History", "Favourites", "Downloads", "Local")
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -77,6 +87,7 @@ fun LibraryScreen(
                 0 -> HistoryTab(onOpenDetails = onOpenDetails)
                 1 -> FavouritesTab(onOpenDetails = onOpenDetails)
                 2 -> DownloadsTab(onOpenDetails = onOpenDetails)
+                3 -> LocalVideosTab(onPlayMedia = onPlayMedia)
             }
         }
     }
@@ -377,5 +388,159 @@ private fun EmptyStateView(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun LocalVideosTab(
+    onPlayMedia: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    val repository = remember { AshTubeRepository.getInstance(context) }
+    val scope = rememberCoroutineScope()
+    val localVideos by repository.localMediaFlow.collectAsState(initial = emptyList())
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                repository.indexLocalFile(uri)
+            }
+        }
+    }
+
+    val folderPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree(),
+    ) { treeUri ->
+        if (treeUri != null) {
+            scope.launch {
+                repository.indexLocalDirectory(treeUri)
+            }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = { filePickerLauncher.launch(arrayOf("video/*")) },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("+ Add Video")
+            }
+            OutlinedButton(
+                onClick = { folderPickerLauncher.launch(null) },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("+ Add Folder")
+            }
+        }
+
+        if (localVideos.isEmpty()) {
+            EmptyStateView(
+                title = "No local videos added",
+                description = "AshTube uses Android's Storage Access Framework (SAF) so you can pick videos or video folders. Only files you explicitly select are indexed; unrelated storage is never scanned.",
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(localVideos, key = { it.uri }) { video ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                        ) {
+                            Text(
+                                text = video.displayName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val detailsText = listOfNotNull(
+                                formatFileSize(video.sizeBytes).takeIf { it.isNotEmpty() },
+                                formatDuration(video.durationMs).takeIf { it.isNotEmpty() },
+                                video.resolution,
+                            ).joinToString(" • ")
+
+                            if (detailsText.isNotEmpty()) {
+                                Text(
+                                    text = detailsText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+
+                            if (video.lastPlayedPositionMs > 0 && video.durationMs > 0) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                val progress = (video.lastPlayedPositionMs.toFloat() / video.durationMs.toFloat()).coerceIn(0f, 1f)
+                                LinearProgressIndicator(
+                                    progress = { progress },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                            ) {
+                                Button(
+                                    onClick = { onPlayMedia(video.uri) },
+                                ) {
+                                    Text("Play")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        scope.launch {
+                                            repository.removeLocalMedia(video.uri)
+                                        }
+                                    },
+                                ) {
+                                    Text("Remove")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatFileSize(bytes: Long): String {
+    if (bytes <= 0) return ""
+    val mb = bytes / (1024.0 * 1024.0)
+    return if (mb >= 1000) {
+        String.format(java.util.Locale.US, "%.2f GB", mb / 1024.0)
+    } else {
+        String.format(java.util.Locale.US, "%.1f MB", mb)
+    }
+}
+
+private fun formatDuration(ms: Long): String {
+    if (ms <= 0) return ""
+    val totalSeconds = ms / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        String.format(java.util.Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds)
     }
 }

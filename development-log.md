@@ -340,6 +340,44 @@ The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The 
 
 AshTube now has a complete offline persistence architecture backing user preferences, library history, favourites, and downloads through Android Room, DataStore, and corresponding Rust storage traits.
 
+## Phase 5, Step 2 — Storage Access Framework (SAF) local media, repository persistence, and hardening
+
+**Status:** Complete, pending toolchain build verification  
+**Date:** 2026-10-15
+
+### What was done
+
+1. Implemented Storage Access Framework (SAF) local media indexing:
+   - Created `LocalMediaEntity` and `LocalMediaDao` in `com.ashrin.ashtube.data.local` with Flow queries, primary URI keys, progress tracking, and metadata columns.
+   - Upgraded `AshTubeDatabase` to version 2 incorporating `LocalMediaEntity` and `localMediaDao`.
+   - Created `LocalMediaManager` to handle `ACTION_OPEN_DOCUMENT` and `ACTION_OPEN_DOCUMENT_TREE` selections, taking persistable URI permissions (`takePersistableUriPermission`), reading display names/sizes from `OpenableColumns`, and retrieving duration/resolution safely with `MediaMetadataRetriever`. Unrelated storage is strictly unread.
+2. Built Unified Repository Layer (`AshTubeRepository`):
+   - Bridges Room DAOs (`FavoriteDao`, `HistoryDao`, `DownloadDao`, `LocalMediaDao`) and DataStore preferences with reactive Kotlin `Flow`s.
+   - Implemented asynchronous coroutine methods for toggling favorites, recording watch history/progress, managing download tasks, and registering indexed local media.
+3. Added Local Videos Tab to `LibraryScreen`:
+   - Added 4th "Local" tab featuring "+ Add Video" (`ActivityResultContracts.OpenDocument`) and "+ Add Folder" (`ActivityResultContracts.OpenDocumentTree`) buttons.
+   - Displays indexed local video cards with file size, duration, resolution badge, watch progress bar, "Play" action, and "Remove" control.
+   - Provided privacy assurance empty-state messaging.
+4. Player & Navigation Integration for Local Video Playback:
+   - Updated `MockCatalogRepository` and `PlayerScreen` to dynamically resolve local `content://` and file URIs, generating local playback sessions with progress and watch history tracking.
+   - Connected `MainActivity` navigation so clicking "Play" on a local video immediately launches the immersive `PlayerScreen`.
+5. Hardening and Privacy Verification:
+   - Configured `android:usesCleartextTraffic="false"` in `AndroidManifest.xml` to mandate HTTPS-only connections.
+   - Published `PRIVACY.md` detailing the zero-account architecture, local-only SQLite retention, SAF scoped permissions, and user data clearing.
+   - Updated `SettingsScreen` with an interactive Privacy Policy view and asynchronous repository clear actions.
+6. UniFFI Interface Definition & CI Pipeline:
+   - Defined `ashtube.udl` in `rust/crates/ashtube-ffi/src/ashtube.udl` covering typed media models, pagination, playback options, and `AshTubeCore` methods.
+   - Added `AshTubeCore::new()` constructor and updated unit tests.
+   - Created GitHub Actions CI workflow in `.github/workflows/ci.yml` for automated Rust workspace testing and Android debug APK generation.
+
+### Verification status
+
+The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The codebase is structurally complete and ready for compilation once build tools are available.
+
+### Outcome
+
+AshTube has now fulfilled the Phase 5 local-media and hardening milestones: users can index and play local videos via Android's secure Storage Access Framework without broad file permissions, offline persistence is unified across Room and DataStore, network security enforces HTTPS only, a complete privacy policy is established, and the UniFFI bridge specification and CI pipeline are in place.
+
 ### Scope still excluded
 
 - Existing Moviebox APK private backend, accounts, tokens, signing, code, assets, branding, and UI.

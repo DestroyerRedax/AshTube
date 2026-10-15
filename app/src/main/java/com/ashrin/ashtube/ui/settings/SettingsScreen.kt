@@ -27,13 +27,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.ashrin.ashtube.data.AshTubeRepository
 import com.ashrin.ashtube.data.MockCatalogRepository
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen() {
+    val context = LocalContext.current
+    val repository = remember { AshTubeRepository.getInstance(context) }
+    val scope = rememberCoroutineScope()
+
     var defaultQuality by rememberSaveable { mutableStateOf(MockCatalogRepository.getDefaultQuality()) }
     var adultAccessEnabled by rememberSaveable { mutableStateOf(MockCatalogRepository.isAdultAccessEnabled()) }
     var showNoticesDialog by rememberSaveable { mutableStateOf(false) }
+    var showPrivacyDialog by rememberSaveable { mutableStateOf(false) }
     var statusMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -90,7 +100,7 @@ fun SettingsScreen() {
                         listOf("Auto", "1080p", "720p", "480p").forEach { quality ->
                             OutlinedButton(
                                 onClick = {
-                                    MockCatalogRepository.setDefaultQuality(quality)
+                                    scope.launch { repository.setDefaultQuality(quality) }
                                     defaultQuality = quality
                                     statusMessage = "Default quality updated to $quality."
                                 },
@@ -131,7 +141,7 @@ fun SettingsScreen() {
                         if (adultAccessEnabled) {
                             TextButton(
                                 onClick = {
-                                    MockCatalogRepository.setAdultAccessEnabled(false)
+                                    scope.launch { repository.setAdultAccess(false) }
                                     adultAccessEnabled = false
                                     statusMessage = "Adults mode has been locked and disabled."
                                 },
@@ -163,7 +173,7 @@ fun SettingsScreen() {
                         Text("Watch History", style = MaterialTheme.typography.bodyMedium)
                         TextButton(
                             onClick = {
-                                MockCatalogRepository.clearHistory()
+                                scope.launch { repository.clearHistory() }
                                 statusMessage = "Watch history cleared."
                             },
                         ) {
@@ -179,12 +189,31 @@ fun SettingsScreen() {
                         Text("Favourites", style = MaterialTheme.typography.bodyMedium)
                         TextButton(
                             onClick = {
-                                MockCatalogRepository.clearFavorites()
+                                scope.launch { repository.clearFavorites() }
                                 statusMessage = "Favourites cleared."
                             },
                         ) {
                             Text("Clear")
                         }
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedButton(
+                        onClick = { showPrivacyDialog = !showPrivacyDialog },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (showPrivacyDialog) "Hide Privacy Policy" else "View Privacy Policy")
+                    }
+                    if (showPrivacyDialog) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "• Zero Accounts & Zero Cloud Sync: No profile or personal data is collected or transmitted.\n" +
+                                "• On-Device Storage: All watch history, favourites, and settings are saved exclusively in local SQLite (Room) and DataStore.\n" +
+                                "• Storage Access Framework (SAF): Only video files and folders you explicitly pick are indexed. AshTube never scans unrelated storage.\n" +
+                                "• Network Security: HTTPS-only traffic is strictly enforced; cleartext HTTP is disabled.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
@@ -203,7 +232,7 @@ fun SettingsScreen() {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("AshTube", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        text = "Version 0.1.0-dev (Phase 2 MVP)",
+                        text = "Version 0.2.0-dev (Phase 5 Storage, Hardening & Local Media)",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

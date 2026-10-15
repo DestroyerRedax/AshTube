@@ -150,6 +150,10 @@ private fun AshTubeApp() {
                     )
                     MainTab.LIBRARY -> LibraryScreen(
                         onOpenDetails = { id -> selectedMediaId = id },
+                        onPlayMedia = { uri ->
+                            activePlayerMediaId = uri
+                            activePlayerEpisodeNumber = null
+                        },
                     )
                     MainTab.SETTINGS -> SettingsScreen()
                 }

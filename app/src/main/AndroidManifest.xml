@@ -10,6 +10,7 @@
         android:allowBackup="true"
         android:label="AshTube"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
         android:theme="@style/Theme.AshTube">
         <activity
             android:name=".MainActivity"

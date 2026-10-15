@@ -12,6 +12,10 @@ pub struct AshTubeCore {
 }
 
 impl AshTubeCore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn home(&self, section: &str, page: u32) -> Result<Page<CatalogItem>, CoreError> {
         self.provider.home(section, page)
     }
@@ -70,7 +74,7 @@ mod tests {
 
     #[test]
     fn facade_returns_mock_home_content() {
-        let core = AshTubeCore::default();
+        let core = AshTubeCore::new();
         let home = core.home("trending", 1).unwrap();
         assert_eq!(home.items.len(), 3);
     }

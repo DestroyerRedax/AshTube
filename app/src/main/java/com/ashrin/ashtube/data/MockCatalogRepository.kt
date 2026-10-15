@@ -80,6 +80,15 @@ data class DownloadItem(
     val error: String? = null,
 )
 
+data class LocalVideoItem(
+    val uri: String,
+    val displayName: String,
+    val durationMs: Long = 0L,
+    val sizeBytes: Long = 0L,
+    val resolution: String? = null,
+    val lastPositionMs: Long = 0L,
+)
+
 /**
  * Development-only content and state for the Android UI. This repository has no
  * network access and will be replaced by the Rust bridge and local Room persistence in later phases.
@@ -126,13 +135,24 @@ object MockCatalogRepository {
         MediaItem("mock-adult-4", "Rouge City", "Adult (18+)", "2025"),
     )
 
-    // In-memory sets to model favourites, history, downloads, and preferences
+    // In-memory sets to model favourites, history, downloads, local videos, and preferences
     private val favoriteIds = mutableSetOf<String>()
     private val history = mutableListOf<HistoryEntry>()
     private val downloads = mutableListOf<DownloadItem>()
+    private val localVideos = mutableMapOf<String, LocalVideoItem>()
     private var isAdultAccessConfirmed = false
     private var defaultPlaybackQuality = "1080p"
     private var appThemePreference = "Dark"
+
+    fun registerLocalVideo(item: LocalVideoItem) {
+        localVideos[item.uri] = item
+    }
+
+    fun removeLocalVideo(uri: String) {
+        localVideos.remove(uri)
+    }
+
+    fun getLocalVideos(): List<LocalVideoItem> = localVideos.values.toList()
 
     fun isAdultAccessEnabled(): Boolean = isAdultAccessConfirmed
 
@@ -341,14 +361,40 @@ object MockCatalogRepository {
 
     fun recordProgress(mediaId: String, positionMs: Long, durationMs: Long) {
         progressMap[mediaId] = positionMs
+        val local = localVideos[mediaId]
+        if (local != null || mediaId.startsWith("content://") || mediaId.startsWith("file://")) {
+            val title = local?.displayName ?: "Local Video"
+            history.removeAll { it.mediaId == mediaId }
+            history.add(0, HistoryEntry(mediaId, title, "Local Video", "Local", positionMs, durationMs))
+            return
+        }
         val item = findItem(mediaId) ?: return
-        history.removeAll { it.mediaId == id }
+        history.removeAll { it.mediaId == mediaId }
         history.add(0, HistoryEntry(item.id, item.title, item.type, item.year, positionMs, durationMs))
     }
 
     fun getProgress(mediaId: String): Long = progressMap[mediaId] ?: 0L
 
     fun createPlaybackSession(mediaId: String, episodeNumber: Int? = null): PlaybackSession? {
+        val local = localVideos[mediaId]
+        if (local != null || mediaId.startsWith("content://") || mediaId.startsWith("file://")) {
+            val title = local?.displayName ?: "Local Video"
+            val duration = if (local != null && local.durationMs > 0) local.durationMs else 7200000L
+            val startPos = getProgress(mediaId)
+            recordProgress(mediaId, startPos, duration)
+            return PlaybackSession(
+                mediaId = mediaId,
+                title = title,
+                type = "Local Video",
+                durationMs = duration,
+                startPositionMs = startPos,
+                availableQualities = listOf("Original"),
+                availableSubtitles = listOf(
+                    SubtitleTrack("sub-none", "None", "Off"),
+                ),
+            )
+        }
+
         val details = getDetails(mediaId) ?: return null
         val item = details.item
         val episode = if (episodeNumber != null) {

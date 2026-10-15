@@ -1,0 +1,105 @@
+namespace ashtube {};
+
+enum MediaKind {
+    "Movie",
+    "Series",
+    "Anime",
+    "Kids",
+    "Adult",
+    "Other",
+};
+
+dictionary CatalogItem {
+    string id;
+    string title;
+    MediaKind kind;
+    u16? year;
+    string summary;
+    string? poster_url;
+};
+
+dictionary Episode {
+    u32 season;
+    u32 episode;
+    string title;
+};
+
+dictionary SubtitleTrack {
+    string language;
+    string label;
+};
+
+dictionary PlaybackOptions {
+    string media_id;
+    sequence<string> qualities;
+    sequence<SubtitleTrack> subtitles;
+};
+
+dictionary Page {
+    sequence<CatalogItem> items;
+    u32 page;
+    boolean has_next_page;
+};
+
+dictionary MediaDetails {
+    CatalogItem item;
+    sequence<Episode> episodes;
+};
+
+dictionary DownloadSelection {
+    string media_id;
+    string quality;
+    boolean source_is_authorized;
+};
+
+dictionary DownloadPlan {
+    string media_id;
+    string quality;
+};
+
+dictionary FavoriteItem {
+    string media_id;
+    string title;
+};
+
+dictionary HistoryItem {
+    string media_id;
+    string title;
+    u64 position_ms;
+    u64 duration_ms;
+};
+
+[Error]
+enum CoreError {
+    "NotFound",
+    "InvalidRequest",
+    "ProviderDisabled",
+    "UnauthorizedSource",
+    "AdultAccessRestricted",
+};
+
+interface AshTubeCore {
+    constructor();
+    [Throws=CoreError]
+    Page home(string section, u32 page);
+    [Throws=CoreError]
+    Page search(string query, u32 page);
+    [Throws=CoreError]
+    MediaDetails details(string media_id);
+    [Throws=CoreError]
+    PlaybackOptions playback_options(string media_id);
+    [Throws=CoreError]
+    Page adult_home(boolean confirmed_adult, u32 page);
+    [Throws=CoreError]
+    DownloadPlan create_download_plan(DownloadSelection selection);
+    [Throws=CoreError]
+    boolean is_favorite(string media_id);
+    [Throws=CoreError]
+    void set_favorite(FavoriteItem item, boolean is_favorite);
+    [Throws=CoreError]
+    sequence<FavoriteItem> get_favorites();
+    [Throws=CoreError]
+    void record_history(HistoryItem item);
+    [Throws=CoreError]
+    sequence<HistoryItem> get_history();
+};

@@ -7,17 +7,20 @@ import androidx.room.RoomDatabase
 import com.ashrin.ashtube.data.local.dao.DownloadDao
 import com.ashrin.ashtube.data.local.dao.FavoriteDao
 import com.ashrin.ashtube.data.local.dao.HistoryDao
+import com.ashrin.ashtube.data.local.dao.LocalMediaDao
 import com.ashrin.ashtube.data.local.entities.DownloadEntity
 import com.ashrin.ashtube.data.local.entities.FavoriteEntity
 import com.ashrin.ashtube.data.local.entities.HistoryEntity
+import com.ashrin.ashtube.data.local.entities.LocalMediaEntity
 
 @Database(
     entities = [
         FavoriteEntity::class,
         HistoryEntity::class,
         DownloadEntity::class,
+        LocalMediaEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class AshTubeDatabase : RoomDatabase() {
@@ -25,6 +28,7 @@ abstract class AshTubeDatabase : RoomDatabase() {
     abstract fun favoriteDao(): FavoriteDao
     abstract fun historyDao(): HistoryDao
     abstract fun downloadDao(): DownloadDao
+    abstract fun localMediaDao(): LocalMediaDao
 
     companion object {
         @Volatile
