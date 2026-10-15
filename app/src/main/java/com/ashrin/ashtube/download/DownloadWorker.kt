@@ -88,21 +88,7 @@ class DownloadWorker(
         }
 
         if (activeStreamUrl.isEmpty() || !activeStreamUrl.startsWith("http")) {
-            val failureUpdate = DownloadRecord(
-                downloadId = downloadId,
-                mediaId = mediaId,
-                title = title,
-                status = DownloadStatus.FAILED,
-                progress = 0f,
-                bytesDownloaded = 0L,
-                totalBytes = 0L,
-                targetFilePath = null,
-                streamUrl = null,
-                createdAt = System.currentTimeMillis(),
-                completedAt = System.currentTimeMillis(),
-                errorMessage = "Real stream not available for download",
-            )
-            database.downloadDao().insertOrUpdate(failureUpdate)
+            database.downloadDao().updateState(downloadId, "FAILED")
             return@withContext Result.failure()
         }
 
