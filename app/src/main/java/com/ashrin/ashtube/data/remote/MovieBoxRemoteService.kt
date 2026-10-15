@@ -424,30 +424,31 @@ object MovieBoxRemoteService {
             }
         }
 
-        // 4. Deterministic, reliable high-definition stream fallback when notice video is rejected
-        val fallbackStreams = listOf(
-            "https://vjs.zencdn.net/v/oceans.mp4",
-            "https://media.w3.org/2010/05/sintel/trailer.mp4",
-            "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-            "https://storage.googleapis.com/exoplayer-test-media-1/mp4/frame-counter-one-hour.mp4",
-        )
-        val stableIdx = kotlin.math.abs(subjectId.hashCode() + (ep * 31)) % fallbackStreams.size
-        val resolvedStream = candidateStreams.firstOrNull() ?: fallbackStreams[stableIdx]
+        // 4. Return valid direct candidate or delegate to Vidlink real streaming resolver
+        val directCandidate = candidateStreams.firstOrNull()
+        if (directCandidate != null) {
+            val epTitle = if (ep > 0) "Season $se, Episode $ep" else null
+            return@withContext PlaybackSession(
+                mediaId = subjectId,
+                title = details.item.title,
+                type = details.item.type,
+                episodeTitle = epTitle,
+                seasonNumber = if (se > 0) se else null,
+                episodeNumber = if (ep > 0) ep else null,
+                durationMs = 7200000L,
+                startPositionMs = 0L,
+                streamUrl = directCandidate,
+                availableQualities = listOf("Auto", "1080p", "720p", "480p"),
+                availableSubtitles = subtitles,
+            )
+        }
 
-        val epTitle = if (ep > 0) "Season $se, Episode $ep" else null
-
-        PlaybackSession(
-            mediaId = subjectId,
+        VidlinkStreamResolver.resolveStream(
+            id = subjectId,
             title = details.item.title,
             type = details.item.type,
-            episodeTitle = epTitle,
-            seasonNumber = if (se > 0) se else null,
-            episodeNumber = if (ep > 0) ep else null,
-            durationMs = 7200000L,
-            startPositionMs = 0L,
-            streamUrl = resolvedStream,
-            availableQualities = listOf("Auto", "1080p", "720p", "480p"),
-            availableSubtitles = subtitles,
+            season = if (se > 0) se else 1,
+            episode = if (ep > 0) ep else 1,
         )
     }
 

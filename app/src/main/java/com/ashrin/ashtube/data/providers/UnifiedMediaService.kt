@@ -147,17 +147,23 @@ object UnifiedMediaService {
             } catch (_: Exception) {}
         }
 
-        // Guaranteed absolute fallback
+        // Direct final attempt via VidlinkStreamResolver
         val details = getDetails(mediaId)
-        val title = details?.item?.title ?: "Stream"
-        PlaybackSession(
-            mediaId = mediaId,
-            title = title,
-            type = details?.item?.type ?: "Movie",
-            durationMs = 7200000L,
-            startPositionMs = 0L,
-            streamUrl = "https://vjs.zencdn.net/v/oceans.mp4",
-            availableQualities = listOf("1080p", "720p", "480p"),
-        )
+        val title = details?.item?.title ?: mediaId
+        val type = details?.item?.type ?: "Movie"
+        try {
+            val session = com.ashrin.ashtube.data.remote.VidlinkStreamResolver.resolveStream(
+                id = mediaId,
+                title = title,
+                type = type,
+                season = if (type.equals("Series", ignoreCase = true)) 1 else null,
+                episode = episodeNumber ?: 1,
+            )
+            if (session != null && !session.streamUrl.isNullOrEmpty()) {
+                return@withContext session
+            }
+        } catch (_: Exception) {}
+
+        null
     }
 }

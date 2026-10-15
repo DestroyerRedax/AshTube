@@ -41,7 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem as Media3MediaItem
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.ashrin.ashtube.data.MockCatalogRepository
 import com.ashrin.ashtube.data.PlaybackSession
@@ -56,20 +58,23 @@ fun PlayerScreen(
 ) {
     val context = LocalContext.current
     var activeEpisodeNumber by rememberSaveable(mediaId) { mutableStateOf(initialEpisodeNumber) }
-    var session by remember(mediaId, activeEpisodeNumber) {
+    var retryTrigger by remember { mutableStateOf(0) }
+    var playbackErrorMessage by remember { mutableStateOf<String?>(null) }
+    var session by remember(mediaId, activeEpisodeNumber, retryTrigger) {
         mutableStateOf<PlaybackSession?>(null)
     }
-    var isLoadingSession by remember(mediaId, activeEpisodeNumber) {
+    var isLoadingSession by remember(mediaId, activeEpisodeNumber, retryTrigger) {
         mutableStateOf(true)
     }
 
-    LaunchedEffect(mediaId, activeEpisodeNumber) {
+    LaunchedEffect(mediaId, activeEpisodeNumber, retryTrigger) {
         isLoadingSession = true
+        playbackErrorMessage = null
         try {
             val liveSession = MockCatalogRepository.createPlaybackSessionLive(mediaId, activeEpisodeNumber)
-            session = liveSession ?: MockCatalogRepository.createPlaybackSession(mediaId, activeEpisodeNumber)
-        } catch (_: Exception) {
-            session = MockCatalogRepository.createPlaybackSession(mediaId, activeEpisodeNumber)
+            session = liveSession
+        } catch (e: Exception) {
+            playbackErrorMessage = "Error: ${e.message}"
         } finally {
             isLoadingSession = false
         }
@@ -86,13 +91,13 @@ fun PlayerScreen(
             ) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Resolving multi-provider stream (MovieBox, mov-cli, ani-cli)...", style = MaterialTheme.typography.titleMedium)
+                Text("Resolving live stream from CDN vault...", style = MaterialTheme.typography.titleMedium)
             }
         }
         return
     }
 
-    if (session == null) {
+    if (session == null || session?.streamUrl.isNullOrEmpty()) {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -101,10 +106,26 @@ fun PlayerScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("Unable to load media stream.", style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = onBack) {
-                    Text("Return")
+                Text(
+                    text = "Stream Unavailable",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = playbackErrorMessage ?: "Could not resolve a playable stream from live servers for this title.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = { retryTrigger++ }) {
+                        Text("Retry")
+                    }
+                    OutlinedButton(onClick = onBack) {
+                        Text("Go Back")
+                    }
                 }
             }
         }
@@ -122,34 +143,43 @@ fun PlayerScreen(
     var showSubtitleDialog by rememberSaveable { mutableStateOf(false) }
     var showControls by rememberSaveable { mutableStateOf(true) }
 
-    // Media3 ExoPlayer instance for live stream playback
+    // Media3 ExoPlayer instance for live stream playback with custom HTTP headers
     val exoPlayer = remember(context, currentSession.streamUrl) {
         val url = currentSession.streamUrl
         if (!url.isNullOrEmpty()) {
-            ExoPlayer.Builder(context).build().apply {
-                addListener(object : androidx.media3.common.Player.Listener {
-                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                        val fallback = "https://vjs.zencdn.net/v/oceans.mp4"
-                        if (url != fallback) {
-                            setMediaItem(Media3MediaItem.fromUri(fallback))
-                            prepare()
-                            playWhenReady = true
+            val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+                .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                .setAllowCrossProtocolRedirects(true)
+                .setDefaultRequestProperties(
+                    mapOf(
+                        "Referer" to "https://vidlink.pro/",
+                        "Origin" to "https://vidlink.pro",
+                    ),
+                )
+            val mediaSourceFactory = DefaultMediaSourceFactory(context)
+                .setDataSourceFactory(httpDataSourceFactory)
+
+            ExoPlayer.Builder(context)
+                .setMediaSourceFactory(mediaSourceFactory)
+                .build().apply {
+                    addListener(object : androidx.media3.common.Player.Listener {
+                        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                            playbackErrorMessage = "Stream playback error: ${error.localizedMessage ?: "Format not supported"}"
                         }
+                    })
+                    val mediaUri = if (url.startsWith("/")) {
+                        android.net.Uri.fromFile(java.io.File(url))
+                    } else {
+                        android.net.Uri.parse(url)
                     }
-                })
-                val mediaUri = if (url.startsWith("/")) {
-                    android.net.Uri.fromFile(java.io.File(url))
-                } else {
-                    android.net.Uri.parse(url)
+                    val mediaItem = Media3MediaItem.fromUri(mediaUri)
+                    setMediaItem(mediaItem)
+                    if (currentPositionMs > 0L) {
+                        seekTo(currentPositionMs)
+                    }
+                    prepare()
+                    playWhenReady = isPlaying
                 }
-                val mediaItem = Media3MediaItem.fromUri(mediaUri)
-                setMediaItem(mediaItem)
-                if (currentPositionMs > 0L) {
-                    seekTo(currentPositionMs)
-                }
-                prepare()
-                playWhenReady = isPlaying
-            }
         } else null
     }
 

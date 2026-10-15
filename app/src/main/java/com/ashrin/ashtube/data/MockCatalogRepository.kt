@@ -319,7 +319,7 @@ object MockCatalogRepository {
             return session
         }
 
-        return createPlaybackSession(mediaId, episodeNumber)
+        return null
     }
 
     /**
@@ -508,7 +508,7 @@ object MockCatalogRepository {
             episodeNumber = episode?.episode,
             durationMs = 7200000L,
             startPositionMs = startPos,
-            streamUrl = "https://vjs.zencdn.net/v/oceans.mp4",
+            streamUrl = null,
             availableQualities = details.availableQualities,
         )
     }

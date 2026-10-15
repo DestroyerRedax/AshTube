@@ -5,7 +5,8 @@ import com.ashrin.ashtube.data.HomeSection
 import com.ashrin.ashtube.data.MediaDetails
 import com.ashrin.ashtube.data.MediaItem
 import com.ashrin.ashtube.data.PlaybackSession
-import com.ashrin.ashtube.data.SubtitleTrack
+import com.ashrin.ashtube.data.remote.CinemetaCatalogService
+import com.ashrin.ashtube.data.remote.VidlinkStreamResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -19,7 +20,7 @@ class FreeFlixProvider : MediaProvider {
 
     private val freeFlixCatalog = listOf(
         MediaItem(
-            id = "freeflix-godfather",
+            id = "tt0068646",
             title = "The Godfather",
             type = "Movie",
             year = "1972",
@@ -28,7 +29,7 @@ class FreeFlixProvider : MediaProvider {
             rating = "★ 9.2",
         ),
         MediaItem(
-            id = "freeflix-spirited-away",
+            id = "tt0245429",
             title = "Spirited Away",
             type = "Movie",
             year = "2001",
@@ -37,7 +38,7 @@ class FreeFlixProvider : MediaProvider {
             rating = "★ 8.5",
         ),
         MediaItem(
-            id = "freeflix-dark-knight",
+            id = "tt0468569",
             title = "The Dark Knight",
             type = "Movie",
             year = "2008",
@@ -46,7 +47,7 @@ class FreeFlixProvider : MediaProvider {
             rating = "★ 9.0",
         ),
         MediaItem(
-            id = "freeflix-parasite",
+            id = "tt6751668",
             title = "Parasite",
             type = "Movie",
             year = "2019",
@@ -55,7 +56,7 @@ class FreeFlixProvider : MediaProvider {
             rating = "★ 8.5",
         ),
         MediaItem(
-            id = "freeflix-pulp-fiction",
+            id = "tt0110912",
             title = "Pulp Fiction",
             type = "Movie",
             year = "1994",
@@ -64,10 +65,10 @@ class FreeFlixProvider : MediaProvider {
             rating = "★ 8.9",
         ),
         MediaItem(
-            id = "freeflix-breaking-bad",
+            id = "tt0903747",
             title = "Breaking Bad",
             type = "Series",
-            year = "2008-2013",
+            year = "2008",
             posterUrl = "https://image.tmdb.org/t/p/w500/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg",
             provider = name,
             rating = "★ 9.5",
@@ -78,8 +79,14 @@ class FreeFlixProvider : MediaProvider {
 
     override suspend fun search(query: String): List<MediaItem> = withContext(Dispatchers.IO) {
         val normalized = query.trim().lowercase()
-        freeFlixCatalog.filter {
+        val localMatches = freeFlixCatalog.filter {
             it.title.lowercase().contains(normalized)
+        }
+        try {
+            val liveResults = CinemetaCatalogService.search(query).map { it.copy(provider = name) }
+            (localMatches + liveResults).distinctBy { it.id }
+        } catch (_: Exception) {
+            localMatches
         }
     }
 
@@ -91,6 +98,13 @@ class FreeFlixProvider : MediaProvider {
     }
 
     override suspend fun getDetails(id: String): MediaDetails? = withContext(Dispatchers.IO) {
+        val liveDetails = try {
+            CinemetaCatalogService.getDetails(id)
+        } catch (_: Exception) {
+            null
+        }
+        if (liveDetails != null) return@withContext liveDetails
+
         val item = freeFlixCatalog.find { it.id == id } ?: return@withContext null
         val episodes = if (item.type == "Series") {
             listOf(
@@ -105,39 +119,24 @@ class FreeFlixProvider : MediaProvider {
             item = item,
             summary = "Streamed via freeflix-cli multi-source repository. Master quality release with crystal audio.",
             episodes = episodes,
-            availableQualities = listOf("1080p Master", "720p", "480p"),
+            availableQualities = listOf("1080p", "720p", "480p", "360p"),
             backdropUrl = item.posterUrl,
             genre = "Crime / Drama / Masterpiece",
         )
     }
 
     override suspend fun resolveStream(id: String, episodeNumber: Int?): PlaybackSession? = withContext(Dispatchers.IO) {
-        val item = freeFlixCatalog.find { it.id == id } ?: return@withContext null
+        val details = getDetails(id)
+        val title = details?.item?.title ?: id
+        val type = details?.item?.type ?: "Movie"
         val ep = episodeNumber ?: 1
 
-        val streams = listOf(
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-            "https://media.w3.org/2010/05/sintel/trailer.mp4",
-        )
-        val idx = kotlin.math.abs(id.hashCode() + (ep * 19)) % streams.size
-
-        PlaybackSession(
-            mediaId = id,
-            title = item.title,
-            type = item.type,
-            episodeTitle = if (item.type == "Series") "Episode $ep" else null,
-            seasonNumber = if (item.type == "Series") 1 else null,
-            episodeNumber = if (item.type == "Series") ep else null,
-            durationMs = 7200000L,
-            startPositionMs = 0L,
-            streamUrl = streams[idx],
-            availableQualities = listOf("1080p Master", "720p", "480p"),
-            availableSubtitles = listOf(
-                SubtitleTrack("sub-none", "None", "Off"),
-                SubtitleTrack("sub-en", "English", "English [CC]"),
-                SubtitleTrack("sub-fr", "French", "Français"),
-            ),
+        VidlinkStreamResolver.resolveStream(
+            id = id,
+            title = title,
+            type = type,
+            season = if (type == "Series") 1 else null,
+            episode = if (type == "Series") ep else null,
         )
     }
 }

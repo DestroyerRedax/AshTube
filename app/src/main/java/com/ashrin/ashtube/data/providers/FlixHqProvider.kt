@@ -5,14 +5,10 @@ import com.ashrin.ashtube.data.HomeSection
 import com.ashrin.ashtube.data.MediaDetails
 import com.ashrin.ashtube.data.MediaItem
 import com.ashrin.ashtube.data.PlaybackSession
-import com.ashrin.ashtube.data.SubtitleTrack
+import com.ashrin.ashtube.data.remote.CinemetaCatalogService
+import com.ashrin.ashtube.data.remote.VidlinkStreamResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
 
 /**
  * Provider 2: mov-cli (Python) / FlixHQ & Films Scraper Backend
@@ -24,7 +20,7 @@ class FlixHqProvider : MediaProvider {
 
     private val curatedMovies = listOf(
         MediaItem(
-            id = "movcli-oppenheimer",
+            id = "tt15398776",
             title = "Oppenheimer",
             type = "Movie",
             year = "2023",
@@ -33,7 +29,7 @@ class FlixHqProvider : MediaProvider {
             rating = "★ 8.9",
         ),
         MediaItem(
-            id = "movcli-dune-2",
+            id = "tt15239678",
             title = "Dune: Part Two",
             type = "Movie",
             year = "2024",
@@ -42,7 +38,7 @@ class FlixHqProvider : MediaProvider {
             rating = "★ 8.6",
         ),
         MediaItem(
-            id = "movcli-deadpool-wolverine",
+            id = "tt6263850",
             title = "Deadpool & Wolverine",
             type = "Movie",
             year = "2024",
@@ -51,7 +47,7 @@ class FlixHqProvider : MediaProvider {
             rating = "★ 8.0",
         ),
         MediaItem(
-            id = "movcli-interstellar",
+            id = "tt0816692",
             title = "Interstellar",
             type = "Movie",
             year = "2014",
@@ -60,7 +56,7 @@ class FlixHqProvider : MediaProvider {
             rating = "★ 8.7",
         ),
         MediaItem(
-            id = "movcli-the-batman",
+            id = "tt1877830",
             title = "The Batman",
             type = "Movie",
             year = "2022",
@@ -69,25 +65,25 @@ class FlixHqProvider : MediaProvider {
             rating = "★ 7.8",
         ),
         MediaItem(
-            id = "movcli-stranger-things",
+            id = "tt4574334",
             title = "Stranger Things",
             type = "Series",
-            year = "2016-2025",
+            year = "2016",
             posterUrl = "https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg",
             provider = name,
             rating = "★ 8.7",
         ),
         MediaItem(
-            id = "movcli-the-boys",
+            id = "tt1190634",
             title = "The Boys",
             type = "Series",
-            year = "2019-2024",
+            year = "2019",
             posterUrl = "https://image.tmdb.org/t/p/w500/2zmTngn1tYC1AvfnrFLhxeD82hz.jpg",
             provider = name,
             rating = "★ 8.7",
         ),
         MediaItem(
-            id = "movcli-fallout",
+            id = "tt12637874",
             title = "Fallout",
             type = "Series",
             year = "2024",
@@ -101,73 +97,82 @@ class FlixHqProvider : MediaProvider {
 
     override suspend fun search(query: String): List<MediaItem> = withContext(Dispatchers.IO) {
         val normalized = query.trim().lowercase()
-        curatedMovies.filter {
+        val localMatches = curatedMovies.filter {
             it.title.lowercase().contains(normalized)
+        }
+        try {
+            val liveResults = CinemetaCatalogService.search(query).map {
+                it.copy(provider = name)
+            }
+            (localMatches + liveResults).distinctBy { it.id }
+        } catch (_: Exception) {
+            localMatches
         }
     }
 
     override suspend fun getHomeSection(): HomeSection {
-        return HomeSection(
-            title = "Hollywood & Hits (mov-cli)",
-            items = curatedMovies,
-        )
+        return try {
+            val live = CinemetaCatalogService.fetchPopularMovies()
+            if (live.isNotEmpty()) {
+                HomeSection(
+                    title = "Hollywood & Hits (mov-cli)",
+                    items = live.take(10).map { it.copy(provider = name) },
+                )
+            } else {
+                HomeSection(
+                    title = "Hollywood & Hits (mov-cli)",
+                    items = curatedMovies,
+                )
+            }
+        } catch (_: Exception) {
+            HomeSection(
+                title = "Hollywood & Hits (mov-cli)",
+                items = curatedMovies,
+            )
+        }
     }
 
     override suspend fun getDetails(id: String): MediaDetails? = withContext(Dispatchers.IO) {
+        val liveDetails = try {
+            CinemetaCatalogService.getDetails(id)
+        } catch (_: Exception) {
+            null
+        }
+        if (liveDetails != null) return@withContext liveDetails
+
         val item = curatedMovies.find { it.id == id } ?: return@withContext null
         val episodes = if (item.type == "Series") {
             listOf(
-                Episode(1, 1, "Chapter 1: The Vanishing"),
-                Episode(1, 2, "Chapter 2: The Weirdo"),
-                Episode(1, 3, "Chapter 3: Holly, Jolly"),
-                Episode(1, 4, "Chapter 4: The Body"),
-                Episode(1, 5, "Chapter 5: The Flea and the Acrobat"),
+                Episode(1, 1, "Chapter 1"),
+                Episode(1, 2, "Chapter 2"),
+                Episode(1, 3, "Chapter 3"),
+                Episode(1, 4, "Chapter 4"),
+                Episode(1, 5, "Chapter 5"),
             )
         } else emptyList()
 
         MediaDetails(
             item = item,
-            summary = "Streamed via mov-cli plugin ecosystem. High-bitrate video stream with multichannel audio and multi-subs.",
+            summary = "Streamed via mov-cli scraper ecosystem. High-bitrate video stream with multichannel audio and multi-subs.",
             episodes = episodes,
-            availableQualities = listOf("1080p Ultra", "1080p", "720p", "480p"),
+            availableQualities = listOf("1080p", "720p", "480p", "360p"),
             backdropUrl = item.posterUrl,
             genre = if (item.type == "Series") "Sci-Fi / Drama" else "Action / Adventure",
         )
     }
 
     override suspend fun resolveStream(id: String, episodeNumber: Int?): PlaybackSession? = withContext(Dispatchers.IO) {
-        val item = curatedMovies.find { it.id == id } ?: return@withContext null
-
+        val details = getDetails(id)
+        val title = details?.item?.title ?: id
+        val type = details?.item?.type ?: "Movie"
         val ep = episodeNumber ?: 1
-        val epTitle = if (item.type == "Series") "Episode $ep" else null
 
-        // Reliable CDN streams with high-definition MP4 & HLS
-        val streamUrls = listOf(
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-        )
-        val idx = kotlin.math.abs(id.hashCode() + (ep * 17)) % streamUrls.size
-
-        PlaybackSession(
-            mediaId = id,
-            title = item.title,
-            type = item.type,
-            episodeTitle = epTitle,
-            seasonNumber = if (item.type == "Series") 1 else null,
-            episodeNumber = if (item.type == "Series") ep else null,
-            durationMs = 7200000L,
-            startPositionMs = 0L,
-            streamUrl = streamUrls[idx],
-            availableQualities = listOf("1080p Ultra", "1080p", "720p", "480p"),
-            availableSubtitles = listOf(
-                SubtitleTrack("sub-none", "None", "Off"),
-                SubtitleTrack("sub-en", "English", "English [CC]"),
-                SubtitleTrack("sub-es", "Spanish", "Español"),
-                SubtitleTrack("sub-fr", "French", "Français"),
-            ),
+        VidlinkStreamResolver.resolveStream(
+            id = id,
+            title = title,
+            type = type,
+            season = if (type == "Series") 1 else null,
+            episode = if (type == "Series") ep else null,
         )
     }
 }

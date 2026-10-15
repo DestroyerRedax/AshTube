@@ -81,22 +81,41 @@ class DownloadWorker(
         if (activeStreamUrl.isEmpty() || !activeStreamUrl.startsWith("http")) {
             try {
                 val resolved = com.ashrin.ashtube.data.providers.UnifiedMediaService.resolveStream(mediaId)
-                activeStreamUrl = resolved?.streamUrl ?: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                activeStreamUrl = resolved?.streamUrl ?: ""
             } catch (_: Exception) {
-                activeStreamUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                activeStreamUrl = ""
             }
         }
 
+        if (activeStreamUrl.isEmpty() || !activeStreamUrl.startsWith("http")) {
+            val failureUpdate = DownloadRecord(
+                downloadId = downloadId,
+                mediaId = mediaId,
+                title = title,
+                status = DownloadStatus.FAILED,
+                progress = 0f,
+                bytesDownloaded = 0L,
+                totalBytes = 0L,
+                targetFilePath = null,
+                streamUrl = null,
+                createdAt = System.currentTimeMillis(),
+                completedAt = System.currentTimeMillis(),
+                errorMessage = "Real stream not available for download",
+            )
+            database.downloadDao().insertOrUpdate(failureUpdate)
+            return Result.failure()
+        }
+
         try {
-            if (activeStreamUrl.isNotEmpty() && activeStreamUrl.startsWith("http")) {
-                val url = URL(activeStreamUrl)
-                val conn = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 15000
-                    readTimeout = 15000
-                    setRequestProperty("User-Agent", "AshTube/2.0 (Android; ExoPlayer)")
-                    setRequestProperty("Referer", "https://sportslive.wine")
-                }
+            val url = URL(activeStreamUrl)
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 15000
+                readTimeout = 30000
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                setRequestProperty("Referer", "https://vidlink.pro/")
+                setRequestProperty("Origin", "https://vidlink.pro")
+            }
 
                 val responseCode = conn.responseCode
                 if (responseCode in 200..299) {
