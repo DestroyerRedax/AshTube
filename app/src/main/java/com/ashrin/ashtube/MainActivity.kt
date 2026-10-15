@@ -26,11 +26,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import com.ashrin.ashtube.ui.adult.AdultScreen
 import com.ashrin.ashtube.ui.details.DetailScreen
 import com.ashrin.ashtube.ui.home.HomeScreen
 import com.ashrin.ashtube.ui.home.SearchScreen
+import com.ashrin.ashtube.ui.library.LibraryScreen
+import com.ashrin.ashtube.ui.settings.SettingsScreen
 import com.ashrin.ashtube.ui.theme.AshTubeTheme
+
+enum class MainTab {
+    HOME,
+    SEARCH,
+    LIBRARY,
+    SETTINGS,
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,7 +60,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AshTubeApp() {
     var noticeAccepted by rememberSaveable { mutableStateOf(false) }
-    var showingSearch by rememberSaveable { mutableStateOf(false) }
+    var currentTab by rememberSaveable { mutableStateOf(MainTab.HOME) }
     var showingAdultSection by rememberSaveable { mutableStateOf(false) }
     var selectedMediaId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -61,15 +74,54 @@ private fun AshTubeApp() {
             onBack = { showingAdultSection = false },
             onOpenDetails = { id -> selectedMediaId = id },
         )
-        showingSearch -> SearchScreen(
-            onBack = { showingSearch = false },
-            onOpenDetails = { id -> selectedMediaId = id },
-        )
-        else -> HomeScreen(
-            onSearch = { showingSearch = true },
-            onOpenAdult = { showingAdultSection = true },
-            onOpenDetails = { id -> selectedMediaId = id },
-        )
+        else -> Scaffold(
+            bottomBar = {
+                NavigationBar {
+                    NavigationBarItem(
+                        selected = currentTab == MainTab.HOME,
+                        onClick = { currentTab = MainTab.HOME },
+                        label = { Text("Home") },
+                        icon = { Text("🏠") },
+                    )
+                    NavigationBarItem(
+                        selected = currentTab == MainTab.SEARCH,
+                        onClick = { currentTab = MainTab.SEARCH },
+                        label = { Text("Search") },
+                        icon = { Text("🔍") },
+                    )
+                    NavigationBarItem(
+                        selected = currentTab == MainTab.LIBRARY,
+                        onClick = { currentTab = MainTab.LIBRARY },
+                        label = { Text("Library") },
+                        icon = { Text("📚") },
+                    )
+                    NavigationBarItem(
+                        selected = currentTab == MainTab.SETTINGS,
+                        onClick = { currentTab = MainTab.SETTINGS },
+                        label = { Text("Settings") },
+                        icon = { Text("⚙️") },
+                    )
+                }
+            },
+        ) { innerPadding ->
+            Box(modifier = Modifier.padding(innerPadding)) {
+                when (currentTab) {
+                    MainTab.HOME -> HomeScreen(
+                        onSearch = { currentTab = MainTab.SEARCH },
+                        onOpenAdult = { showingAdultSection = true },
+                        onOpenDetails = { id -> selectedMediaId = id },
+                    )
+                    MainTab.SEARCH -> SearchScreen(
+                        onBack = { currentTab = MainTab.HOME },
+                        onOpenDetails = { id -> selectedMediaId = id },
+                    )
+                    MainTab.LIBRARY -> LibraryScreen(
+                        onOpenDetails = { id -> selectedMediaId = id },
+                    )
+                    MainTab.SETTINGS -> SettingsScreen()
+                }
+            }
+        }
     }
 }
 

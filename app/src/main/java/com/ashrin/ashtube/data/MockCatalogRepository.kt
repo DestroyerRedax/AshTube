@@ -33,6 +33,15 @@ data class HomeSection(
     val items: List<MediaItem>,
 )
 
+data class DownloadItem(
+    val id: String,
+    val mediaId: String,
+    val title: String,
+    val quality: String,
+    val progress: Float,
+    val status: String,
+)
+
 /**
  * Development-only content and state for the Android UI. This repository has no
  * network access and will be replaced by the Rust bridge and local Room persistence in later phases.
@@ -79,16 +88,25 @@ object MockCatalogRepository {
         MediaItem("mock-adult-4", "Rouge City", "Adult (18+)", "2025"),
     )
 
-    // In-memory sets to model favourites, history, and adult access preference
+    // In-memory sets to model favourites, history, downloads, and preferences
     private val favoriteIds = mutableSetOf<String>()
     private val history = mutableListOf<HistoryEntry>()
+    private val downloads = mutableListOf<DownloadItem>()
     private var isAdultAccessConfirmed = false
+    private var defaultPlaybackQuality = "1080p"
+    private var appThemePreference = "Dark"
 
     fun isAdultAccessEnabled(): Boolean = isAdultAccessConfirmed
 
     fun setAdultAccessEnabled(enabled: Boolean) {
         isAdultAccessConfirmed = enabled
     }
+
+    fun getDefaultQuality(): String = defaultPlaybackQuality
+    fun setDefaultQuality(quality: String) { defaultPlaybackQuality = quality }
+
+    fun getThemePreference(): String = appThemePreference
+    fun setThemePreference(theme: String) { appThemePreference = theme }
 
     /**
      * General Home sections. Strictly excludes Adults (18+) content.
@@ -193,6 +211,10 @@ object MockCatalogRepository {
     fun getFavorites(): List<MediaItem> =
         favoriteIds.mapNotNull { findItem(it) }
 
+    fun clearFavorites() {
+        favoriteIds.clear()
+    }
+
     fun recordHistory(id: String) {
         val item = findItem(id) ?: return
         history.removeAll { it.mediaId == id }
@@ -200,4 +222,29 @@ object MockCatalogRepository {
     }
 
     fun getHistory(): List<HistoryEntry> = history.toList()
+
+    fun clearHistory() {
+        history.clear()
+    }
+
+    fun enqueueDownload(mediaId: String, quality: String = "1080p") {
+        val item = findItem(mediaId) ?: return
+        if (downloads.any { it.mediaId == mediaId }) return
+        downloads.add(
+            DownloadItem(
+                id = "dl-${downloads.size + 1}",
+                mediaId = item.id,
+                title = item.title,
+                quality = quality,
+                progress = 1.0f,
+                status = "Downloaded (Mock)",
+            ),
+        )
+    }
+
+    fun getDownloads(): List<DownloadItem> = downloads.toList()
+
+    fun removeDownload(id: String) {
+        downloads.removeAll { it.id == id }
+    }
 }

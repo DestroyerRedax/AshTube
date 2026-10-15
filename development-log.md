@@ -204,7 +204,44 @@ The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The 
 
 ### Outcome
 
-AshTube now has a fully gated, strictly isolated Adults (18+) area compliant with the project design plan. The next UI step is Phase 2, Step 4: Settings screen and offline messaging, followed by Room persistence.
+AshTube now has a fully gated, strictly isolated Adults (18+) area compliant with the project design plan.
+
+## Phase 2, Step 4 — Complete Browse & Search MVP with Library, Settings, and Navigation Shell
+
+**Status:** Complete, pending toolchain build verification  
+**Date:** 2026-10-15
+
+### What was done
+
+1. Created `LibraryScreen` in `com.ashrin.ashtube.ui.library`:
+   - Primary tabs for Watch History, Favourites, and Downloads queue.
+   - History tab: lists recently played items with a "Resume" action and "Clear history" control.
+   - Favourites tab: lists all favourited items with quick detail navigation and "Clear all" control.
+   - Downloads tab: displays queued/completed items with quality badge, progress bar, and "Delete" action.
+   - Implemented friendly empty-state views for all three tabs.
+2. Created `SettingsScreen` in `com.ashrin.ashtube.ui.settings`:
+   - Playback settings: default streaming quality selector ("Auto", "1080p", "720p", "480p").
+   - Content & Policy: shows adult section lock status and enables quick revocation/locking.
+   - Storage & Privacy: one-tap clearing of watch history and favourites with on-screen feedback.
+   - About: app version display, project independence disclaimer, and collapsible open-source notices.
+3. Updated `MainActivity` with a Material 3 `Scaffold` and `NavigationBar`:
+   - Bottom navigation items for Home (🏠), Search (🔍), Library (📚), and Settings (⚙️).
+   - Seamless routing keeping DetailScreen and AdultScreen as full-screen overlays returning to the active tab.
+4. Updated `MockCatalogRepository`:
+   - Added download queue data model and management (`DownloadItem`, `enqueueDownload`, `getDownloads`, `removeDownload`).
+   - Added `clearHistory()`, `clearFavorites()`, and playback quality preference methods.
+5. Updated `DetailScreen`:
+   - Connected the "Download" action to `MockCatalogRepository.enqueueDownload(mediaId)` so downloaded titles immediately appear in the Library Downloads tab.
+
+### Verification status
+
+The environment still lacks JDK, Gradle, Android SDK, and Cargo toolchains. The codebase is structurally complete and ready for compilation once build tools are available.
+
+### Outcome
+
+AshTube has now fully realized the Phase 2 "Browse and search MVP" milestone defined in `plan.md`. The app contains an original Jetpack Compose interface with Home feeds, Search, Title Details, Episodes, Adults (18+) gate, Library (History/Favourites/Downloads), and Settings.
+
+The next project milestone is Phase 3: Playback and Subtitles (Media3 ExoPlayer integration, stream resolution, and audio focus).
 
 ### Scope still excluded
 

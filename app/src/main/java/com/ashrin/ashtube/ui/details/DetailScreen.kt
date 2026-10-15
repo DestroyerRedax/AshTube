@@ -118,7 +118,8 @@ fun DetailScreen(
 
                 OutlinedButton(
                     onClick = {
-                        actionFeedback = "Download plan created for '${item.title}' (mock)."
+                        MockCatalogRepository.enqueueDownload(mediaId)
+                        actionFeedback = "Added '${item.title}' to Download queue (mock)."
                     },
                     modifier = Modifier.weight(1f),
                 ) {
