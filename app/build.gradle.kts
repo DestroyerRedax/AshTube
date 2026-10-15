@@ -13,19 +13,45 @@ android {
         applicationId = "com.ashrin.ashtube"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("ASHTUBE_RELEASE_KEYSTORE_PATH")
+            val keystoreFile = keystorePath?.let { file(it) }
+            if (keystoreFile != null && keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("ASHTUBE_RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ASHTUBE_RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("ASHTUBE_RELEASE_KEY_PASSWORD")
+            } else {
+                // Fallback to debug certificate for automated test/CI builds when release secret is omitted
+                val debugKeystore = getByName("debug")
+                storeFile = debugKeystore.storeFile
+                storePassword = debugKeystore.storePassword
+                keyAlias = debugKeystore.keyAlias
+                keyPassword = debugKeystore.keyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+        debug {
+            applicationIdSuffix = ".debug"
+            isDebuggable = true
         }
     }
 

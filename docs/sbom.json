@@ -1,0 +1,59 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "AshTube-SBOM",
+  "documentNamespace": "https://github.com/ashrin/ashtube/spdx/0.2.0",
+  "creationInfo": {
+    "creators": [
+      "Tool: AshTube Release Auditor",
+      "Organization: AshTube Project"
+    ],
+    "created": "2026-10-15T06:00:00Z"
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-AshTube",
+      "name": "AshTube",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "MIT OR Apache-2.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-Media3",
+      "name": "androidx.media3",
+      "versionInfo": "1.5.0",
+      "downloadLocation": "https://developer.android.com/media/media3",
+      "licenseConcluded": "Apache-2.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-Room",
+      "name": "androidx.room",
+      "versionInfo": "2.6.1",
+      "downloadLocation": "https://developer.android.com/jetpack/androidx/releases/room",
+      "licenseConcluded": "Apache-2.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-DataStore",
+      "name": "androidx.datastore",
+      "versionInfo": "1.1.1",
+      "downloadLocation": "https://developer.android.com/topic/libraries/architecture/datastore",
+      "licenseConcluded": "Apache-2.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-WorkManager",
+      "name": "androidx.work",
+      "versionInfo": "2.10.0",
+      "downloadLocation": "https://developer.android.com/topic/libraries/architecture/workmanager",
+      "licenseConcluded": "Apache-2.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-UniFFI",
+      "name": "uniffi",
+      "versionInfo": "0.28.0",
+      "downloadLocation": "https://github.com/mozilla/uniffi-rs",
+      "licenseConcluded": "MPL-2.0 OR Apache-2.0"
+    }
+  ]
+}
